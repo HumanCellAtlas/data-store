@@ -21,6 +21,7 @@ sys.path.insert(0, pkg_root)  # noqa
 
 from dss.util import UrlBuilder
 from dss.events.handlers import notify_v2
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
 from tests.infra import DSSAssertMixin, DSSUploadMixin, get_env, testmode
 from dss.config import Replica
 from tests.infra.server import ThreadedLocalServer, SilentHandler
@@ -125,6 +126,51 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
         self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         self.assertEquals(notification['match']['bundle_version'], f"{bundle_version}")
+
+    def test_handle_bucket_event(self):
+        for replica in Replica:
+            for is_delete_event in [False, True]:
+                for key_exists in [False, True]:
+                    for key_is_tombstone in [False, True]:
+                        kwargs = dict(replica=replica,
+                                      is_delete_event=is_delete_event,
+                                      key_exists=key_exists,
+                                      key_is_tombstone=key_is_tombstone)
+                        with self.subTest(** kwargs):
+                            self._test_handle_bucket_event(** kwargs)
+
+    @mock.patch("daemons.dss-notify-v2.app.get_deleted_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.exists")
+    @mock.patch("daemons.dss-notify-v2.app.get_tombstoned_bundles")
+    @mock.patch("daemons.dss-notify-v2.app.delete_event_for_bundle")
+    @mock.patch("daemons.dss-notify-v2.app.build_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.record_event_for_bundle")
+    @mock.patch("daemons.dss-notify-v2.app._deliver_notifications")
+    def _test_handle_bucket_event(self,
+                                  *mocked_methods,
+                                  replica: Replica,
+                                  is_delete_event: bool,
+                                  key_exists: bool,
+                                  key_is_tombstone: bool):
+        mocks = {m._mock_name: m for m in mocked_methods}
+        mocks['exists'].return_value = key_exists
+        mocks['get_deleted_bundle_metadata_document'].return_value = f"{uuid4()}"
+        mocks['build_bundle_metadata_document'].return_value = f"{uuid4()}"
+        mocks['record_event_for_bundle'].return_value = f"{uuid4()}"
+        key = f"{uuid4()}.{TOMBSTONE_SUFFIX}" if key_is_tombstone else f"{uuid4()}"
+        daemon_app._handle_bucket_event(replica, key, is_delete_event)  # type: ignore
+        if is_delete_event:
+            metadata_doc = mocks['get_deleted_bundle_metadata_document'].return_value
+            mocks['_deliver_notifications'].assert_called_with(replica, metadata_doc, key)
+        else:
+            if key_exists:
+                if key_is_tombstone:
+                    metadata_doc = mocks['build_bundle_metadata_document'].return_value
+                else:
+                    metadata_doc = mocks['record_event_for_bundle'].return_value
+                mocks['_deliver_notifications'].assert_called_with(replica, metadata_doc, key)
+            else:
+                mocks['_deliver_notifications'].assert_not_called()
 
     @testmode.standalone
     def test_notify_or_queue(self):
@@ -286,7 +332,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         self.assertIn('stats', get_sub)
         self.assertGreater(int(get_sub['stats'][SubscriptionStats.SUCCESSFUL]), 0)
 
-    @eventually(60, 1, {botocore.exceptions.ClientError})
+    @eventually(120, 1, {botocore.exceptions.ClientError})
     def _get_notification_from_s3_object(self, bucket, key):
         obj = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read().decode("utf-8")
         return json.loads(obj)
@@ -576,19 +622,22 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
             self.assertIn('bundle_url', recieved_notification)
             self.assertIn('event_timestamp', recieved_notification)
 
-    def test_launch_from_notification_queue(self):
-        with mock.patch("daemons.dss-notify-v2.app.get_subscription"), mock.patch("daemons.dss-notify-v2.app.notify"),\
-                mock.patch("daemons.dss-notify-v2.app.update_subscription_stats"):
-            for replica in Replica:
-                for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:
-                    with self.subTest("Test call", replica=replica.name, event_type=event_type):
-                        message = dict(replica=replica.name,
-                                       owner="owner",
-                                       uuid="uuid",
-                                       key="bundles/uuid.version",
-                                       event_type=event_type)
-                        event = {'Records': [dict(body=json.dumps(message))]}
-                        daemon_app.launch_from_notification_queue(event, None)
+    @mock.patch("daemons.dss-notify-v2.app.get_subscription")
+    @mock.patch("daemons.dss-notify-v2.app.notify")
+    @mock.patch("daemons.dss-notify-v2.app.get_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.get_deleted_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.update_subscription_stats")
+    def test_launch_from_notification_queue(self, *args, **kwargs):
+        for replica in Replica:
+            for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:
+                with self.subTest("Test call", replica=replica.name, event_type=event_type):
+                    message = dict(replica=replica.name,
+                                   owner="owner",
+                                   uuid="uuid",
+                                   key="bundles/e32290e0-971c-4063-8707-df56ccc5606b.2019-11-15T202303.689105Z",
+                                   event_type=event_type)
+                    event = {'Records': [dict(body=json.dumps(message))]}
+                    daemon_app.launch_from_notification_queue(event, None)
 
     def _put_subscription(self, doc, replica=Replica.aws, codes=requests.codes.created):
         url = str(UrlBuilder()

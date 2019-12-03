@@ -762,18 +762,22 @@ paths:
                 description: >
                   A collection of static form fields to be supplied in the request body, alongside the actual
                   notification payload. The value of each field must be a string. For example, if the subscriptions has
-                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will be
+                  this property set to `{"foo" : "bar"}`, the corresponding notification HTTP request body will consist
+                  of a multipart frame with two frames,
 
                   ```
 
-                  --2769baffc4f24cbc83ced26aa0c2f712
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="foo"
 
                   bar
+
+                  ----------------2769baffc4f24cbc83ced26aa0c2f712
+
                   Content-Disposition: form-data; name="payload"
 
                   {"transaction_id": "301c9079-3b20-4311-a131-bcda9b7f08ba", "subscription_id": ...
-                  --2769baffc4f24cbc83ced26aa0c2f712--
 
                   ```
 
@@ -1482,7 +1486,10 @@ paths:
           enum: [aws, gcp]
         - name: prefix
           in: query
-          description: Is used to specify the beginning of a particular bundle UUID. Specifying a character(s) would provide all avaliable bundles starting with that character(s).
+          description: >
+            Used to specify the beginning of a particular bundle UUID.  Capitalized letters will be lower-cased as is
+            done when users submit a uuid (all uuids have lower-cased letters upon ingestion into the dss).
+            Specifying a character(s) would provide all avaliable bundles starting with that character(s).
           required: false
           type: string
         - name: token
@@ -2289,34 +2296,23 @@ paths:
           minimum: 1
           maximum: 10
           default: 1
+        - name: token
+          in: query
+          description: Token to manage retries.  End users constructing queries should not set this parameter.
+          required: false
+          type: string
       responses:
         200:
           description: OK
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                url:
-                  description: Location of the journal data.
-                  type: string
-                manifest:
-                  $ref: '#/definitions/EventsManifest'
+            $ref: '#/definitions/EventStreams'
           headers:
             X-OpenAPI-Pagination:
               type: boolean
         206:
           description: A single page of results was retrieved.
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                url:
-                  description: Location of the journal data.
-                  type: string
-                manifest:
-                  $ref: '#/definitions/EventsManifest'
+            $ref: '#/definitions/EventStreams'
           headers:
             Link:
               type: string
@@ -2825,6 +2821,13 @@ definitions:
       - type
       - uuid
       - version
+  EventStreams:
+    type: object
+    properties:
+      event_streams:
+        type: array
+        items:
+          $ref: '#/definitions/EventsManifest'
   EventsManifest:
     type: object
     properties:
@@ -2832,12 +2835,10 @@ definitions:
         description: The event journal identifier.
         type: string
       from_date:
-        type: string
         format: DSS_VERSION
         description: DSS_VERSION format timestamp of the first event in the journal.
         type: string
       to_date:
-        type: string
         format: DSS_VERSION
         description: DSS_VERSION format timestamp of the last event in the journal.
         type: string

@@ -1,16 +1,17 @@
 {
-  "app_name": "dss-index",
+  "app_name": "dss-events-scribe",
+  "version": "2.0",
   "environment_variables": {
     "GOOGLE_APPLICATION_CREDENTIALS": "/var/task/domovoilib/gcp-credentials.json"
   },
   "stages": {
     "dev": {
       "api_gateway_stage": "dev",
+      "tags": {},
       "environment_variables": {}
     }
   },
-  "version": "2.0",
-  "lambda_timeout": 300,
-  "lambda_memory_size": 1536,
-  "reserved_concurrent_executions": 200
+  "reserved_concurrency": 1,
+  "lambda_timeout": 600,
+  "lambda_memory_size": 2560
 }

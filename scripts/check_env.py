@@ -2,7 +2,6 @@
 """
 Used to check missing deployed lambda env variables with local environment variables.
 Does not check the values of the variables, limited to a check if the key is present.
-
 """
 import os
 import boto3

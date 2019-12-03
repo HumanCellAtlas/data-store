@@ -5,7 +5,7 @@ image: humancellatlas/dss-build-box
 variables:
   GIT_SUBMODULE_STRATEGY: normal
   DSS_ES_TIMEOUT: 30
-  DSS_UNITTEST_OPTS: "-v"
+  DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
 
 stages:
@@ -18,8 +18,7 @@ stages:
   - release
 
 before_script:
-  - export COMMITS_URL=${GITHUB_API}/repos/HumanCellAtlas/data-store/commits
-  - if not [[ CI_COMMIT_SHA == $(http GET $COMMITS_URL sha==$CI_COMMIT_REF_NAME | jq -r '.[0]["sha"]') ]]; then exit 1; fi
+  - date && date -u
 # TODO: figure out how to get the gitlab-runner to not clone the repo as root - Brian H
   - virtualenv ~/venv
   - source ~/venv/bin/activate
@@ -58,14 +57,14 @@ test_search:
 test_aws_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestAWSIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestAWSIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
 test_gcp_indexer:
   extends: .tests
   variables:
-    DSS_UNITTEST_OPTS: "-v TestGCPIndexer"
+    DSS_UNITTEST_OPTS: "-b -v TestGCPIndexer"
   script:
     - make -j1 tests/test_indexer.py
 
@@ -87,9 +86,20 @@ setup_fusillade:
     -   source environment.$CI_COMMIT_REF_NAME
     - fi
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
-    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force testing
+    - if [ "$DSS_DEPLOYMENT_STAGE" == "dev" ]; then
+    -   FUS_STAGE='testing'
+    - else
+    -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
+    - fi
+    - python -m json.tool ./temp-roles.json > /dev/null || exit 1
+    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
+    - scripts/check_fusillade.py $FUS_STAGE
   except:
     - schedules
+  only:
+    - master
+    - integration
+    - staging
 
 deploy:
   stage: deploy
@@ -123,6 +133,8 @@ integration_test:
     - staging
   except:
     - schedules
+  variables:
+    DSS_UNITTEST_OPTS: "-v"
 
 scale_and_performance:
   stage: scale_and_performance

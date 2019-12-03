@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+Assemble and deploy AWS DynamoDB tables (for keeping track of runs and run output) for scale tests
+"""
 import boto3
 
 dynamodb_client = boto3.client('dynamodb')

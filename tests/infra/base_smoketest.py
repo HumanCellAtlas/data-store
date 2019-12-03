@@ -131,15 +131,17 @@ class BaseSmokeTest(unittest.TestCase):
             pass
 
     def _test_replay_event(self, replica, bundle_uuid, bundle_version):
-        res = run_for_json(f"{self.venv_bin}hca dss get-events --replica aws --per-page 10 "
-                           f"--from-date {bundle_version}")
-        for event in flashflood.replay_with_urls(res):
-            doc = json.loads(event.data)
-            if doc['manifest']['version'] == bundle_version:
-                break
-        else:
-            self.fail("Event not found in flashflood replay")
-        # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
+        res = run_for_json(f"{self.venv_bin}hca dss get-events --replica aws --per-page 10"
+                           f" --from-date {bundle_version}"
+                           f" --no-paginate")
+        for stream in res['event_streams']:
+            for event in flashflood.replay_event_stream(stream):
+                doc = json.loads(event.data)
+                if doc['manifest']['version'] == bundle_version:
+                    break
+            else:
+                self.fail("Event not found in flashflood replay")
+            # TODO: Figure out how to test event is deleted after flashflood is updated - BrianH
 
     def _test_get_bundle(self, replica, bundle_uuid):
         """ tests that a bundle can be downloaded"""
@@ -177,7 +179,8 @@ class BaseSmokeTest(unittest.TestCase):
 
     def post_search_es(self, replica, es_query):
         """ post-search using es, returns post-search response """
-        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name}')
+        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name} '
+                            f'--no-paginate')
 
     def put_subscription(self, replica, subscription_type, query, url):
 
@@ -227,7 +230,7 @@ class BaseSmokeTest(unittest.TestCase):
         passed_args = {"replica": replica, "per-page": per_page, "prefix": prefix,
                        "search-after": search_after, "token": token}
         command_args = [f'--{key} {value}' for key, value in passed_args.items() if value is not None]
-        command = f"{self.venv_bin}hca dss get-bundles-all {' '.join(command_args)}"
+        command = f"{self.venv_bin}hca dss get-bundles-all {' '.join(command_args)} --no-paginate"
         resp = run_for_json(command)
         return resp
 

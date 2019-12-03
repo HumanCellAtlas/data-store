@@ -43,9 +43,6 @@ DSS_BUNDLE_FQID_REGEX = re.compile(DSS_BUNDLE_FQID_PATTERN)
 
 # matches just bundle keys
 DSS_BUNDLE_KEY_REGEX = re.compile(f"^{BUNDLE_PREFIX}/{DSS_BUNDLE_FQID_PATTERN}$")
-# matches just bundle tombstones
-DSS_BUNDLE_TOMBSTONE_REGEX = re.compile(
-    f"^{BUNDLE_PREFIX}/({UUID_PATTERN})(?:\.(" + VERSION_PATTERN + "))?\." + TOMBSTONE_SUFFIX + "$")
 # matches all bundle objects
 DSS_OBJECT_NAME_REGEX = re.compile(
     f"^({BUNDLE_PREFIX}|{FILE_PREFIX}|{COLLECTION_PREFIX})/({UUID_PATTERN})(?:\.({VERSION_PATTERN}))?(\.{TOMBSTONE_SUFFIX})?$")  # noqa
@@ -56,6 +53,11 @@ FILES_URI_REGEX = re.compile(FILES_PATTERN)
 
 BUNDLES_PATTERN = f'/v1/bundles/{UUID_PATTERN}'
 BUNDLES_URI_REGEX = re.compile(BUNDLES_PATTERN)
+
+# matches just bundle tombstones
+DSS_VERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX = re.compile(
+    f"^{BUNDLE_PREFIX}/({UUID_PATTERN}).({VERSION_PATTERN}).{TOMBSTONE_SUFFIX}$")
+DSS_UNVERSIONED_BUNDLE_TOMBSTONE_KEY_REGEX = re.compile(f"^{BUNDLE_PREFIX}/({UUID_PATTERN}).{TOMBSTONE_SUFFIX}$")
 
 
 class ObjectIdentifierError(ValueError):

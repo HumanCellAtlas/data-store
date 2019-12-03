@@ -152,9 +152,8 @@ def enumerate(replica: str,
     :param per_page: max items per page to show, 10 <= per_page <= 500
     :param search_after: used to page searches, should not be set by the user.
     """
-
     if prefix:
-        search_prefix = f'{BUNDLE_PREFIX}/{prefix}'
+        search_prefix = f'{BUNDLE_PREFIX}/{prefix.lower()}'
     else:
         search_prefix = f'{BUNDLE_PREFIX}/'
     api_domain_name = f'https://{os.environ.get("API_DOMAIN_NAME")}'

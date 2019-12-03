@@ -16,7 +16,10 @@ sys.path.insert(0, pkg_root)  # noqa
 import dss
 from dss import Config, Replica
 from dss.logging import configure_lambda_logging
-from dss.events import get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle
+from dss.storage.bundles import get_tombstoned_bundles
+from dss.storage.identifiers import TOMBSTONE_SUFFIX
+from dss.events import (get_bundle_metadata_document, get_deleted_bundle_metadata_document, record_event_for_bundle,
+                        delete_event_for_bundle, build_bundle_metadata_document)
 from dss.events.handlers.notify_v2 import should_notify, notify_or_queue, notify
 
 from dss.events.handlers.sync import exists
@@ -50,7 +53,7 @@ def launch_from_s3_event(event, context):
             key = unquote(event_record['s3']['object']['key'])
             if key.startswith("bundles"):
                 is_delete_event = (event_record['eventName'] == "ObjectRemoved:Delete")
-                _notify_subscribers(replica, key, is_delete_event)
+                _handle_bucket_event(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
 
@@ -67,7 +70,7 @@ def launch_from_forwarded_event(event, context):
             key = message['name']
             if key.startswith("bundles"):
                 is_delete_event = (message['resourceState'] == "not_exists")
-                _notify_subscribers(replica, key, is_delete_event)
+                _handle_bucket_event(replica, key, is_delete_event)
             else:
                 logger.warning(f"Notifications not supported for {key}")
         else:
@@ -107,22 +110,33 @@ def launch_from_notification_queue(event, context):
         else:
             logger.warning(f"Recieved queue message with no matching subscription:{message}")
 
-def _notify_subscribers(replica: Replica, key: str, is_delete_event: bool):
+def _handle_bucket_event(replica: Replica, key: str, is_delete_event: bool):
     if is_delete_event:
         metadata_document = get_deleted_bundle_metadata_document(replica, key)
     else:
         if exists(replica, key):
-            metadata_document = record_event_for_bundle(replica, key)
+            if key.endswith(TOMBSTONE_SUFFIX):
+                for zombie_key in get_tombstoned_bundles(replica, key):
+                    delete_event_for_bundle(replica, zombie_key)
+                metadata_document = build_bundle_metadata_document(replica, key)
+            else:
+                metadata_document = record_event_for_bundle(replica, key)
         else:
-            logger.error(f"Key %s not found in replica %s, unable to notify subscribers", key, replica.name)
+            logger.error(json.dumps(dict(message="Key not found", replica=replica.name, key=key), indent=4))
             return
 
+    _deliver_notifications(replica, metadata_document, key)
+
+def _deliver_notifications(replica: Replica, metadata_document: dict, key: str):
     def _func(subscription):
         if should_notify(replica, subscription, metadata_document, key):
             notify_or_queue(replica, subscription, metadata_document, key)
 
     # TODO: Consider scaling parallelization with Lambda size
-    logger.info(f"Attempting notifications for; replica: {replica}, key: {key} delete: {is_delete_event}")
+    logger.info(json.dumps(dict(message="Attempting notifications",
+                                replica=replica.name,
+                                key=key,
+                                event_type=metadata_document['event_type']), indent=4))
     with ThreadPoolExecutor(max_workers=20) as e:
         e.map(_func, get_subscriptions_for_replica(replica))
 

@@ -206,6 +206,27 @@ class verify_referential_integrity(StorageOperationHandler):
             self.log_warning("EntityMissingDependencies", dict(key=key, replica=self.replica.name))
 
 
+@storage.action("build-reference-list",
+                mutually_exclusive=["--keys"])
+class build_reference_list(StorageOperationHandler):
+    """This uses bundle key to build out a reference list of objects that are relevant to the bundle"""
+    def process_key(self, key):
+        if not key.startswith(BUNDLE_PREFIX):
+            logger.error(f"only bundle keys supported, unable to process: {key}")
+            return
+        storage_object_references = [key]
+        try:
+            bundle_metadata = json.loads(self.handle.get(self.replica.bucket, key))
+        except BlobNotFoundError as e:
+            logger.error(f"bundle {key} not found {e}")
+        for files in bundle_metadata['files']:
+            storage_object_references.append(f"files/{files['uuid']}.{files['version']}")
+            storage_object_references.append(compose_blob_key(files))
+        for key in storage_object_references:
+            print(key)
+        return storage_object_references  # returned for testing
+
+
 # TODO: Move to cloud_blobstore
 def update_aws_content_type(s3_client, bucket, key, content_type):
     blob = resources.s3.Bucket(bucket).Object(key)

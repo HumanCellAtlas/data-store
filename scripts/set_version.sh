@@ -18,4 +18,4 @@ else
     version=$(git describe --tags --always)
 fi
 
-scripts/populate_lambda_ssm_parameters.py --set DSS_VERSION=${version}
+echo -n ${version} | scripts/dss-ops.py lambda set --quiet DSS_VERSION

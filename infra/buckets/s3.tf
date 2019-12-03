@@ -161,5 +161,15 @@ resource aws_s3_bucket dss_s3_events_bucket {
       }
     }
   }
+  lifecycle_rule {
+    id = "collect garbage"
+    enabled = true
+    tags = {
+      "garbage" = "true"
+    }
+    expiration {
+      days = "1"
+    }
+  }
   tags = "${merge(local.common_tags, local.aws_tags)}"
 }

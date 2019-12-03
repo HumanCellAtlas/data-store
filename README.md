@@ -160,13 +160,13 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
 1.  Run the command
 
     ```
-    ./scripts/populate_lambda_ssm_parameters.py
+    ./scripts/dss-ops.py lambda update
     ```
 
 	This populates the environment variables defining your stage into an AWS Simple Systems Manager parameter store.
     These variables will be read from the parameter store and in-lined into the Lambda deployment packages during
 	deployment. This command should be executed whenever the environment variables are updated. The environments
-	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed-lambdas`.
+	of currently deployed Lambdas may optionally by updated in place with the flag `--update-deployed`.
 
 1.  Choose a region that has support for Cloud Functions and set `GCP_DEFAULT_REGION` to that region. See
     [the GCP locations list](https://cloud.google.com/about/locations/) for a list of supported regions.
@@ -186,6 +186,7 @@ The DSS uses the [Amazon S3 backend](https://www.terraform.io/docs/backends/type
     These buckets will be created with Terraform, and should not exist before deploying for the first time.
 
 #### Configure User Authentication/Authorization
+
 The following environment variables must be set to enable user authentication and authorization.
 
 * `OIDC_AUDIENCE` must be populated with the expected JWT (JSON web token) audience.
@@ -255,6 +256,8 @@ When deploying for the first time, a Google Cloud Platform service account must 
 1.  Run the command
 
     ```
+    ### WARNING: RUNNING THIS COMMAND WILL 
+    ###          CLEAR EXISTING SECRET VALUE
     cat $DSS_HOME/gcp-credentials.json | ./scripts/dss-ops.py secrets set --secret-name $GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME
     ```
 
