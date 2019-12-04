@@ -449,7 +449,6 @@ def check_secrets(argv: typing.List[str], args: argparse.Namespace):
     """
     Ensure that the secrets in an HCA stage deployment are not accidentally
     changed to personal user credentials (or otherwise).  Requires Terraform.
-
     """
     stage = os.environ['DSS_DEPLOYMENT_STAGE']
     s = SecretsChecker(stage)
