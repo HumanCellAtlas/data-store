@@ -3,6 +3,6 @@ data "aws_secretsmanager_secret_version" "source_ips" {
 }
 
 locals {
-  ips_str = "${data.aws_secretsmanager_secret_version.source_ips.secret_string}"
-  access_ips = "${compact(split(",", local.ips_str))}"
+  ips_str = data.aws_secretsmanager_secret_version.source_ips.secret_string
+  access_ips = compact(split(",", local.ips_str))
 }

@@ -14,8 +14,8 @@ locals {
 }
 
 resource aws_s3_bucket dss_s3_bucket {
-  count = "${length(var.DSS_S3_BUCKET) > 0 ? 1 : 0}"
-  bucket = "${var.DSS_S3_BUCKET}"
+  count = length(var.DSS_S3_BUCKET) > 0 ? 1 : 0
+  bucket = var.DSS_S3_BUCKET
   server_side_encryption_configuration {
     rule {
 	  apply_server_side_encryption_by_default {
@@ -23,32 +23,32 @@ resource aws_s3_bucket dss_s3_bucket {
       }
     }
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
 }
 
 resource aws_s3_bucket dss_s3_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  bucket = "${var.DSS_S3_BUCKET_TEST}"
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_S3_BUCKET_TEST
   lifecycle_rule {
     id = "prune old things"
     enabled = true
-    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
+    abort_incomplete_multipart_upload_days = var.DSS_BLOB_TTL_DAYS
     expiration {
-      days = "${var.DSS_BLOB_TTL_DAYS}"
+      days = var.DSS_BLOB_TTL_DAYS
     }
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
 }
 
 resource aws_s3_bucket dss_s3_bucket_test_fixtures {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  bucket = "${var.DSS_S3_BUCKET_TEST_FIXTURES}"
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_S3_BUCKET_TEST_FIXTURES
+  tags = merge(local.common_tags, local.aws_tags)
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket {
-  count = "${length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0}"
-  bucket = "${var.DSS_S3_CHECKOUT_BUCKET}"
+  count = length(var.DSS_S3_CHECKOUT_BUCKET) > 0 ? 1 : 0
+  bucket = var.DSS_S3_CHECKOUT_BUCKET
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
@@ -63,15 +63,15 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
       "uncached" = "true"
     }
     expiration {
-      days = "${var.DSS_BLOB_TTL_DAYS}"
+      days = var.DSS_BLOB_TTL_DAYS
     }
   }
   lifecycle_rule {
     id = "failed multipart cleanup"
     enabled = true
-    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
+    abort_incomplete_multipart_upload_days = var.DSS_BLOB_TTL_DAYS
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
   cors_rule {
     allowed_methods = [
       "HEAD",
@@ -88,37 +88,37 @@ resource aws_s3_bucket dss_s3_checkout_bucket {
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  bucket = "${var.DSS_S3_CHECKOUT_BUCKET_TEST}"
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_S3_CHECKOUT_BUCKET_TEST
   lifecycle_rule {
     id = "dss_checkout_expiration"
     enabled = true
-    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
+    abort_incomplete_multipart_upload_days = var.DSS_BLOB_TTL_DAYS
     expiration {
-      days = "${var.DSS_BLOB_TTL_DAYS}"
+      days = var.DSS_BLOB_TTL_DAYS
     }
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_test_user {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  bucket = "${var.DSS_S3_CHECKOUT_BUCKET_TEST_USER}"
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_S3_CHECKOUT_BUCKET_TEST_USER
   lifecycle_rule {
     id = "dss_checkout_expiration"
     enabled = true
-    abort_incomplete_multipart_upload_days = "${var.DSS_BLOB_TTL_DAYS}"
+    abort_incomplete_multipart_upload_days = var.DSS_BLOB_TTL_DAYS
     expiration {
-      days = "${var.DSS_BLOB_TTL_DAYS}"
+      days = var.DSS_BLOB_TTL_DAYS
     }
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
 }
 
 resource aws_s3_bucket dss_s3_checkout_bucket_unwritable {
-  count = "${var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0}"
-  bucket = "${var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE}"
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_S3_CHECKOUT_BUCKET_UNWRITABLE
+  tags = merge(local.common_tags, local.aws_tags)
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -152,8 +152,8 @@ POLICY
 }
 
 resource aws_s3_bucket dss_s3_events_bucket {
-  count = "${length(var.DSS_FLASHFLOOD_BUCKET) > 0 ? 1 : 0}"
-  bucket = "${var.DSS_FLASHFLOOD_BUCKET}"
+  count = length(var.DSS_FLASHFLOOD_BUCKET) > 0 ? 1 : 0
+  bucket = var.DSS_FLASHFLOOD_BUCKET
   server_side_encryption_configuration {
     rule {
 	  apply_server_side_encryption_by_default {
@@ -171,5 +171,5 @@ resource aws_s3_bucket dss_s3_events_bucket {
       days = "1"
     }
   }
-  tags = "${merge(local.common_tags, local.aws_tags)}"
+  tags = merge(local.common_tags, local.aws_tags)
 }

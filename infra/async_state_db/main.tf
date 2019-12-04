@@ -4,10 +4,10 @@ locals {
   common_tags = "${map(
     "managedBy" , "terraform",
     "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-asyncdynamodb",
-    "project"   , "${var.DSS_INFRA_TAG_PROJECT}",
-    "env"       , "${var.DSS_DEPLOYMENT_STAGE}",
-    "service"   , "${var.DSS_INFRA_TAG_SERVICE}",
-    "owner"     , "${var.DSS_INFRA_TAG_OWNER}"
+    "project"   , var.DSS_INFRA_TAG_PROJECT,
+    "env"       , var.DSS_DEPLOYMENT_STAGE,
+    "service"   , var.DSS_INFRA_TAG_SERVICE,
+    "owner"     , var.DSS_INFRA_TAG_OWNER
   )}"
 }
 
@@ -26,5 +26,5 @@ resource "aws_dynamodb_table" "sfn_state" {
     type = "S"
   }
 
-  tags = "${local.common_tags}"
+  tags = local.common_tags
 }
