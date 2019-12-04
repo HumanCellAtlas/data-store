@@ -23,6 +23,7 @@ from cloud_blobstore import BlobNotFoundError
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from tests import skip_on_travis
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
@@ -1445,15 +1446,14 @@ class TestOperationsIntegration(TestBundleApiMixin):
                                    bundle_version)
         return resp_obj.json, bundle_uuid
 
-    @skip_on_travis
-    def test_check_secrets(self):
-        """Check that the current stage's secrets conform to expected values"""
-        secrets.check_secrets([], argparse.Namespace())
-
 
 @testmode.integration
 class TestSecretsChecker(unittest.TestCase):
     """Test the SecretsChecker class defined in dss/operations/secrets.py"""
+    @skip_on_travis
+    def test_check_secrets(self):
+        """Check that the current stage's secrets conform to expected values"""
+        secrets.check_secrets([], argparse.Namespace())
 
     @skip_on_travis
     def test_custom_stage_secrets(self):
