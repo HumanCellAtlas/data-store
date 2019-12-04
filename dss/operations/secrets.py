@@ -395,8 +395,7 @@ class SecretsChecker(object):
         dss_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         output_infra_dir = os.path.abspath(os.path.join(dss_root_dir, 'infra', output_infra_dir))
 
-        # populate infra's vars for the current stage
-        # FIXME: should this have a cwd?
+        # populate infra vars for the current stage using terraform
         self.run_cmd(cmd=f'make -C infra', cwd=dss_root_dir)
         self.run_cmd(cmd=f'terraform refresh', cwd=output_infra_dir)
 
