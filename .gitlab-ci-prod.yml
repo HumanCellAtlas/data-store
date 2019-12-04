@@ -33,8 +33,8 @@ setup_fusillade:
   script:
     - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
     - cd dcp-fusillade
-# currently, there is no environment.prod in the dcp-fusillade repo
-    - source environment # && source environment.prod
+# currently, there is no environment.production in the dcp-fusillade repo
+    - source environment # && source environment.production
     - cd ..
     - source environment
     - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
