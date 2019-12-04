@@ -34,7 +34,7 @@ from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 from dss.util.version import datetime_to_version_format
 from tests import CaptureStdout, SwapStdin
-from tests.test_bundle import TestBundleApi
+from tests.test_bundle import TestBundleApiMixin
 from tests.infra import get_env, DSSUploadMixin, TestAuthMixin, DSSAssertMixin
 from tests.infra.server import ThreadedLocalServer
 
@@ -1388,7 +1388,7 @@ class TestOperations(unittest.TestCase):
 
 
 @testmode.integration
-class TestOperationsIntegration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
+class TestOperationsIntegration(TestBundleApiMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
