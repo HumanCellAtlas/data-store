@@ -21,6 +21,7 @@ $(error Please run make commands from a Python 3.6 virtualenv)
 endif
 
 
-ifeq ($(findstring Terraform v0.12.16, $(shell terraform --version 2>&1)),)
+ifeq ($(findstring terraform, $(shell which terraform 2>&1)),)
+else ifeq ($(findstring Terraform v0.12.16, $(shell terraform --version 2>&1)),)
 $(error You must use Terraform v0.12.16, please check your terraform version.)
 endif
