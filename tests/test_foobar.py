@@ -19,5 +19,25 @@ class TestFoobar2(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
     def test_foobar2(self):
         print('ohai foobar 2 integration test ran okay')
 
+@testmode.integration
+class TestFoobar2A(TestBundleApi):
+    def test_foobar2A(self):
+        print('ohai foobar 2A integration test ran okay')
+
+@testmode.integration
+class TestFoobar2B(unittest.TestCase, TestAuthMixin):
+    def test_foobar2B(self):
+        print('ohai foobar 2B integration test ran okay')
+
+@testmode.integration
+class TestFoobar2C(unittest.TestCase, DSSAssertMixin):
+    def test_foobar2C(self):
+        print('ohai foobar 2C integration test ran okay')
+
+@testmode.integration
+class TestFoobar2D(unittest.TestCase, DSSUploadMixin):
+    def test_foobar2D(self):
+        print('ohai foobar 2D integration test ran okay')
+
 if __name__ == '__main__':
     unittest.main()
