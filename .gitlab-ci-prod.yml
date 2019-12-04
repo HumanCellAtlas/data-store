@@ -33,19 +33,15 @@ setup_fusillade:
   script:
     - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
     - cd dcp-fusillade
-# currently, there is no environment.production in the dcp-fusillade repo
-    - source environment # && source environment.production
+# currently, there is no environment.prod in the dcp-fusillade repo
+    - source environment # && source environment.prod
     - cd ..
     - source environment
     - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
     -   source environment.$CI_COMMIT_REF_NAME
     - fi
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
-    - if [ "$DSS_DEPLOYMENT_STAGE" == "prod" ]; then
-    -   FUS_STAGE='production'
-    - else
-    -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
-    - fi
+    - FUS_STAGE=$DSS_DEPLOYMENT_STAGE
     - python -m json.tool ./temp-roles.json > /dev/null || exit 1
     - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
     - scripts/check_fusillade.py $FUS_STAGE
