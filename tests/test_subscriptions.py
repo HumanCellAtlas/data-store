@@ -100,7 +100,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
     @eventually(timeout=5, interval=1, errors={AssertionError})
     def assert_owner_subscription_count(self, owner, replica, subscription_count):
-        assert count_subscriptions_for_owner(Replica[replica], owner) == subscription_count
+        self.assertEquals(count_subscriptions_for_owner(Replica[replica], owner), subscription_count)
 
     def test_db_count_subscriptions_for_owner(self):
         """Test dynamoDB helper functions used to store and retrieve subscription information."""
