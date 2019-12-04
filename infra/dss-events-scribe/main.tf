@@ -29,7 +29,7 @@ data "aws_iam_policy_document" "sqs" {
     condition {
       test     = "StringEquals"
       variable = "aws:SourceArn"
-      values = ["${aws_cloudwatch_event_rule.events-scribe.arn}"]
+      values = [aws_cloudwatch_event_rule.events-scribe.arn]
     }
   }
   statement {
@@ -51,23 +51,23 @@ data "aws_iam_policy_document" "sqs" {
 
 resource "aws_sqs_queue" "dss-events-scribe-queue" {
   name   					 = "dss-events-scribe-${var.DSS_DEPLOYMENT_STAGE}"
-  tags   					 = "${local.common_tags}"
+  tags   					 = local.common_tags
   message_retention_seconds  = "3600"
   visibility_timeout_seconds = "600"
-  policy 					 = "${data.aws_iam_policy_document.sqs.json}"
+  policy 					 = data.aws_iam_policy_document.sqs.json
 }
 
 resource "aws_cloudwatch_event_rule" "events-scribe" {
   name 		  		  = "dss-events-scribe-${var.DSS_DEPLOYMENT_STAGE}"
   description 		  = "Queue event journal/update"
   schedule_expression = "rate(10 minutes)"
-  tags 				  = "${local.common_tags}"
+  tags 				  = local.common_tags
 }
 
 resource "aws_cloudwatch_event_target" "send-journal-and-update-message" {
-  count = "${length(local.replicas)}"
-  rule  = "${aws_cloudwatch_event_rule.events-scribe.name}"
-  arn   = "${aws_sqs_queue.dss-events-scribe-queue.arn}"
+  count = length(local.replicas)
+  rule  = aws_cloudwatch_event_rule.events-scribe.name
+  arn   = aws_sqs_queue.dss-events-scribe-queue.arn
   input = <<-DOC
   {
     "replica":"${local.replicas[count.index]}"

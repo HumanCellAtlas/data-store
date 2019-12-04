@@ -31,5 +31,5 @@ resource "aws_dynamodb_table" "collections-db-aws" {
     type = "S"
   }
 
-  tags = "${local.common_tags}"
+  tags = local.common_tags
 }
