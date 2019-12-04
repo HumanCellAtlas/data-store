@@ -1493,7 +1493,7 @@ paths:
 
             The specified character(s) will return all available bundle uuids starting with that character(s).
           required: false
-          pattern: '^[a-zA-Z0-9-]+$'
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9-]*$'
           type: string
         - name: token
           in: query
