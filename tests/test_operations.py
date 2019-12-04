@@ -1445,8 +1445,34 @@ class TestOperationsIntegration(TestBundleApiMixin):
                                    bundle_version)
         return resp_obj.json, bundle_uuid
 
+    @skip_on_travis
     def test_check_secrets(self):
+        """Check that the current stage's secrets conform to expected values"""
         secrets.check_secrets([], argparse.Namespace())
+
+
+@testmode.integration
+class TestSecretsChecker(unittest.TestCase):
+    """Test the SecretsChecker class defined in dss/operations/secrets.py"""
+
+    @skip_on_travis
+    def test_custom_stage_secrets(self):
+        """
+        This should not test other stages, because we have no way of knowing what
+        those secrets should be. This should always pass if stage is not one of
+        dev, staging, integration, or prod.
+        """
+        s = SecretsChecker(stage='somenonsensenamelikeprod')
+        s.run()
+
+    @skip_on_travis
+    def test_invalid_secrets(self):
+        """Checks that a ValueError is raised when an unqualified email is stored in a secret."""
+        s = SecretsChecker(stage='dev')
+        # Override the email field obtained from terraform
+        s.email = ['nonsense']
+        with self.assertRaises(ValueError):
+            s.run()
 
 
 if __name__ == '__main__':
