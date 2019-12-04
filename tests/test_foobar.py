@@ -6,7 +6,7 @@ pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noq
 sys.path.insert(0, pkg_root)  # noqa
 
 from tests.infra import testmode
-from tests.test_bundle import TestBundleApi
+from tests.test_bundle import TestBundleApi, TestBundleApiMixin
 from tests.infra import get_env, DSSUploadMixin, TestAuthMixin, DSSAssertMixin
 
 @testmode.integration
@@ -38,6 +38,11 @@ class TestFoobar2C(unittest.TestCase, DSSAssertMixin):
 class TestFoobar2D(unittest.TestCase, DSSUploadMixin):
     def test_foobar2D(self):
         print('ohai foobar 2D integration test ran okay')
+
+@testmode.integration
+class TestFoobar3(TestBundleApiMixin):
+    def test_foobar3(self):
+        print('ohai foobar 3 integration test ran okay')
 
 if __name__ == '__main__':
     unittest.main()
