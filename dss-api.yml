@@ -278,9 +278,6 @@ paths:
       description: >
         Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
         version's metadata is returned instead.  The metadata is returned in the headers.
-
-        NOTE When using the HCA CLI, this will stream the file to stdout and may need to be piped.  For example,
-          `hca dss get-file --uuid UUID --replica aws > result.txt`
       parameters:
         - name: uuid
           in: path
@@ -350,6 +347,9 @@ paths:
         Headers will contain the data store metadata for the file.
 
         This endpoint returns a HTTP redirect to another HTTP endpoint with the file contents.
+
+        NOTE When using the HCA CLI, this will stream the file to stdout and may need to be piped.  For example,
+          `hca dss get-file --uuid UUID --replica aws > result.txt`
       parameters:
         - name: uuid
           in: path
