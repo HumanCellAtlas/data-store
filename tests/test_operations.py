@@ -1458,16 +1458,15 @@ class TestSecretsChecker(unittest.TestCase):
     @skip_on_travis
     def test_custom_stage_secrets(self):
         """
-        This should not test other stages, because we have no way of knowing what
-        those secrets should be. This should always pass if stage is not one of
-        dev, staging, integration, or prod.
+        The SecretsChecker should not test stages that are not in the list:
+        dev, staging, integration, prod.
         """
         s = SecretsChecker(stage='somenonsensenamelikeprod')
         s.run()
 
     @skip_on_travis
     def test_invalid_secrets(self):
-        """Checks that a ValueError is raised when an unqualified email is stored in a secret."""
+        """Check that a ValueError is raised when an unqualified email is stored in a secret."""
         s = SecretsChecker(stage='dev')
         # Override the email field obtained from terraform
         s.email = ['nonsense']
