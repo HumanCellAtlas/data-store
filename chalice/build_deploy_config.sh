@@ -60,11 +60,14 @@ for var in $(echo $env_json | jq -r keys[]); do
     cat "$config_json" | jq .stages.$stage.environment_variables.$var="$val" | sponge "$config_json"
 done
 
-if [[ ${CI:-} == true ]]; then
-    account_id=$(aws sts get-caller-identity | jq -r .Account)
-    export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"
-    cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
-fi
-
+account_id=$(aws sts get-caller-identity | jq -r .Account)
+export iam_role_arn="arn:aws:iam::${account_id}:role/dss-${stage}"
+cat "$config_json" | jq .manage_iam_role=false | jq .iam_role_arn=env.iam_role_arn | sponge "$config_json"
 cat "$iam_policy_template" | envsubst '$DSS_S3_BUCKET $DSS_S3_CHECKOUT_BUCKET $dss_es_domain $account_id $stage' > "$policy_json"
 cp "$policy_json" "$stage_policy_json"
+
+if [[ ${CI:-} != true ]]; then
+	# IAM policies must be updated from an operators machine, this will not run on CI environments.
+	echo "updating $iam_role_arn with $stage_policy_json"
+	aws iam put-role-policy --role-name $lambda_name --policy-name $lambda_name --policy-document file://$stage_policy_json
+fi
