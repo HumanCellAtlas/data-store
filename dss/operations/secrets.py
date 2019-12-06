@@ -378,10 +378,8 @@ class SecretsChecker(object):
         secret_name = fix_secret_variable_prefix(secret_name)
         try:
             secret = fetch_secret_safely(secret_name)
-        except RuntimeError:
-            self.missing_secrets.append(secret_name)
-            return
-        except json.decoder.JSONDecodeError:
+            secret = json.loads(secret['SecretString'])
+        except (RuntimeError, KeyError, json.decoder.JSONDecodeError):
             self.missing_secrets.append(secret_name)
             return
         if not (('installed' not in secret) or ('client_email' not in secret)) and (self.stage in self.stages):
