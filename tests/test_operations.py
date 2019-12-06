@@ -30,6 +30,7 @@ from dss.operations.util import map_bucket_results
 from dss.operations import checkout, storage, sync, secrets, lambda_params, iam, events
 from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
 from dss.operations.iam import IAMSEPARATOR
+from dss.operations.secrets import SecretsChecker
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
