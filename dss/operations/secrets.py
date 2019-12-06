@@ -374,6 +374,8 @@ class SecretsChecker(object):
 
     def fetch_secret(self, secret_name):
         """Fetch the value of a secret from the AWS secrets manager"""
+        # Add /dcp/dss/$STAGE store prefix to secret name
+        secret_name = fix_secret_variable_prefix(secret_name)
         try:
             secret = fetch_secret_safely(secret_name)
         except RuntimeError:
