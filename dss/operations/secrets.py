@@ -369,7 +369,7 @@ class SecretsChecker(object):
     def get_stage_env(self, env_file):
         """Source the environment file for this stage, then export the current environment as a dict"""
         dump = 'python -c "import os, json; print(json.dumps(dict(os.environ)))"'
-        cmd = ['bash', '-c', f'source {env_file} && {dump}']
+        cmd = ['bash', '-c', f'source environment && source {env_file} && {dump}']
         return json.loads(self.run_cmd(cmd, shell=False))
 
     def fetch_secret(self, secret_name):
