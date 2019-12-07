@@ -62,6 +62,8 @@ RUN wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES
 ENV TF_VERSION 0.12.16
 RUN wget https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip \
     && unzip terraform_${TF_VERSION}_linux_amd64.zip -d ${USER_HOME}/bin
+RUN echo "plugin_cache_dir = \"$HOME/.terraform_plugin_cache\"" >> ${USER_HOME}/.terraformrc
+RUN mkdir ${USER_HOME}/.terraform_plugin_cache
 
 # Address locale problem, see "Python 3 Surrogate Handling":
 # http://click.pocoo.org/5/python3/
