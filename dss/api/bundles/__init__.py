@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
+from dss.mapping.projects import put_project_for_bundle, get_project_for_bundle
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_available_bundles
 from dss.storage.checkout import CheckoutError, TokenError
@@ -21,6 +22,7 @@ from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
 from dss.util import UrlBuilder, security, hashabledict, tracing
 from dss.util.version import datetime_to_version_format
+from dss.dynamodb import DynamoDBItemNotFound
 
 
 """The retry-after interval in seconds. Sets up downstream libraries / users to
@@ -203,7 +205,7 @@ def project_uuid_from_file(replica, file):
             )
         )
     )
-    return file_content['provenance']['document_id']
+    return file_content.get('provenance', {}).get('document_id', None)
 
 
 def determine_project_from_metadata(replica, files):
@@ -227,13 +229,21 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str, project:
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
 
-    project = project if project else determine_project_from_metadata(Replica[replica], files)
+    current_project_association = None
+    try:
+        current_project_association = get_project_for_bundle(uuid)
+    except DynamoDBItemNotFound:
+        pass  # uuid does not currently have a project associated
 
-    if not project:
-        raise RuntimeError(f'Project was not provided and could not be determined from the schema for bundle: '
-                           f'{uuid}.{version}')
+    if not current_project_association == project:
+        raise DSSException(400, "bad_request", "Project differs from the current associated bundle uuid.!")
 
-    # build a manifest consisting of all the files.
+    # user-supplied takes priority, else attempt to parse from the known hca schema, else default unidentified project
+    project = project or determine_project_from_metadata(Replica[replica], files) or 'project-could-not-be-identified'
+    # record the project-bundle association into a db table for later look-up
+    put_project_for_bundle(uuid, project)
+
+    # build a manifest consisting of all of the files.
     bundle_metadata = {
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
         BundleMetadata.VERSION: version,

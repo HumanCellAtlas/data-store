@@ -1742,7 +1742,7 @@ paths:
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: project
-          in: path
+          in: query
           description: A RFC4122-compliant project ID.
           required: false
           type: string
