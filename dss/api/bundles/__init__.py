@@ -19,7 +19,7 @@ from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict
+from dss.util import UrlBuilder, security, hashabledict, tracing
 from dss.util.version import datetime_to_version_format
 
 
@@ -187,8 +187,38 @@ def enumerate(replica: str,
     return response
 
 
+def project_uuid_from_file(replica, file):
+    with tracing.Subsegment('parameterization'):
+        handle = Config.get_blobstore_handle(replica)
+        bucket = replica.bucket
+
+    file_content = json.loads(
+        handle.get(
+            bucket,
+            "blobs/" + ".".join((
+                file[FileMetadata.SHA256],
+                file[FileMetadata.SHA1],
+                file[FileMetadata.S3_ETAG],
+                file[FileMetadata.CRC32C])
+            )
+        )
+    )
+    return file_content['provenance']['document_id']
+
+
+def determine_project_from_metadata(replica, files):
+    """
+    Return a project uuid from the metadata files or None if unsuccessful.
+
+    Relies on schema: https://schema.humancellatlas.org/type/protocol/5.1.0/protocol
+    """
+    for file in files:
+        if file['name'] in ('project.json', 'project_0.json'):
+            return project_uuid_from_file(replica, file)
+
+
 @dss_handler
-def put(uuid: str, replica: str, json_request_body: dict, version: str):
+def put(uuid: str, replica: str, json_request_body: dict, version: str, project: str = None):
     security.assert_authorized(security.get_token_email(request.token_info),
                                ["dss:PutBundle"],
                                [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
@@ -197,12 +227,19 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
 
+    project = project if project else determine_project_from_metadata(Replica[replica], files)
+
+    if not project:
+        raise RuntimeError(f'Project was not provided and could not be determined from the schema for bundle: '
+                           f'{uuid}.{version}')
+
     # build a manifest consisting of all the files.
     bundle_metadata = {
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
         BundleMetadata.VERSION: version,
         BundleMetadata.FILES: files,
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
+        BundleMetadata.PROJECT: project
     }
 
     status_code = _save_bundle(Replica[replica], uuid, version, bundle_metadata)

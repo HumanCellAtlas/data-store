@@ -79,6 +79,7 @@ class BundleMetadata:
     CREATOR_UID = "creator_uid"
     VERSION = "version"
     FILES = "files"
+    PROJECT = "project"
 
 
 class BundleFileMetadata:
