@@ -36,7 +36,7 @@ script:
 - make $MAKE_ARGS
 
 after_success:
-- bash <(curl -s https://codecov.io/bash)
+- if [[ "$TRAVIS_EVENT_TYPE" == "push" ]]; then bash <(curl -s https://codecov.io/bash); fi
 
 if: tag IS blank # don't build tags
 
