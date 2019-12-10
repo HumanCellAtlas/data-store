@@ -103,7 +103,7 @@ def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
         del environment[env_var]
         set_ssm_environment(environment)
         polite_print(
-            args.quiet,
+            quiet,
             f"Success! Unset variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:\n"
             f"    Name: {env_var}\n"
             f"    Previous value: {prev_value}\n"
