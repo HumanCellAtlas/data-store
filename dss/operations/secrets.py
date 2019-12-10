@@ -12,6 +12,7 @@ import logging
 from botocore.exceptions import ClientError
 
 from dss.operations import dispatch
+from dss.operations.util import polite_print
 from dss.util.aws.clients import secretsmanager as sm_client  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -187,14 +188,21 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
     except ClientError:
         # A secret variable with that name does not exist, so create it
         if args.dry_run:
-            if not args.quiet:
-                print(f"Secret variable {secret_name} not found in secrets manager, dry-run creating it")
+            polite_print(
+                args.quiet,
+                f"Secret variable {secret_name} not found in secrets manager, dry-run creating it"
+            )
         else:
-            if not args.quiet:
-                if args.infile:
-                    print(f"Secret variable {secret_name} not found in secrets manager, creating from input file")
-                else:
-                    print(f"Secret variable {secret_name} not found in secrets manager, creating from stdin")
+            if args.infile:
+                polite_print(
+                    args.quiet,
+                    f"Secret variable {secret_name} not found in secrets manager, creating from input file"
+                )
+            else:
+                polite_print(
+                    args.quiet,
+                    f"Secret variable {secret_name} not found in secrets manager, creating from stdin"
+                )
             sm_client.create_secret(Name=secret_name, SecretString=secret_val)
 
     else:
@@ -222,14 +230,21 @@ def set_secret(argv: typing.List[str], args: argparse.Namespace):
                 sys.exit(0)
 
         if args.dry_run:
-            if not args.quiet:
-                print(f"Secret variable {secret_name} found in secrets manager, dry-run updating it")
+            polite_print(
+                args.quiet,
+                f"Secret variable {secret_name} found in secrets manager, dry-run updating it"
+            )
         else:
-            if not args.quiet:
-                if args.infile:
-                    print(f"Secret variable {secret_name} found in secrets manager, updating from input file")
-                else:
-                    print(f"Secret variable {secret_name} found in secrets manager, updating from stdin")
+            if args.infile:
+                polite_print(
+                    args.quiet,
+                    f"Secret variable {secret_name} found in secrets manager, updating from input file"
+                )
+            else:
+                polite_print(
+                    args.quiet,
+                    f"Secret variable {secret_name} found in secrets manager, updating from stdin"
+                )
             sm_client.update_secret(SecretId=secret_name, SecretString=secret_val)
 
 
@@ -259,13 +274,17 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
     except ClientError:
         # No secret var found
-        if not args.quiet:
-            print(f"Secret variable {secret_name} not found in secrets manager!")
+        polite_print(
+            args.quiet,
+            f"Secret variable {secret_name} not found in secrets manager!"
+        )
 
     except sm_client.exceptions.InvalidRequestException:
         # Already deleted secret var
-        if not args.quiet:
-            print(f"Secret variable {secret_name} already marked for deletion in secrets manager!")
+        polite_print(
+            args.quiet,
+            f"Secret variable {secret_name} already marked for deletion in secrets manager!"
+        )
 
     else:
         # Get operation was successful, secret variable exists
@@ -284,10 +303,14 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
 
         if args.dry_run:
             # Delete it for fakes
-            if not args.quiet:
-                print(f"Secret variable {secret_name} found in secrets manager, dry-run deleting it")
+            polite_print(
+                args.quiet, 
+                f"Secret variable {secret_name} found in secrets manager, dry-run deleting it"
+            )
         else:
             # Delete it for real
-            if not args.quiet:
-                print(f"Secret variable {secret_name} found in secrets manager, deleting it")
+            polite_print(
+                args.quiet,
+                f"Secret variable {secret_name} found in secrets manager, deleting it"
+            )
             sm_client.delete_secret(SecretId=secret_name)

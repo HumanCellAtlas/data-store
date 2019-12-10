@@ -27,6 +27,13 @@ command_queue_url = "https://sqs.{}.amazonaws.com/{}/dss-operations-{}".format(
 )
 
 
+LOG_MONITOR_SLEEP_DURATION = 10
+
+
+def polite_print(quiet, msg):
+    if not quiet:
+        print(msg)
+
 def map_bucket_results(func: typing.Callable, handle: BlobStore, bucket: str, base_pfx: str, parallelization=10):
     """
     Call `func` on an iterable of keys
@@ -47,7 +54,6 @@ def map_bucket(*args, **kwargs):
     for _ in map_bucket_results(*args, **kwargs):
         pass
 
-LOG_MONITOR_SLEEP_DURATION = 10
 
 def monitor_logs(logs_client, job_id: str, start_time: datetime):
     start = new_start = int(1000 * (datetime.timestamp(datetime.utcnow())))
