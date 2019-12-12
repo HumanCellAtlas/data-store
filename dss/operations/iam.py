@@ -636,8 +636,7 @@ iam = dispatch.target("iam", arguments={}, help=__doc__)
         ),
         "--exclude-headers": dict(
             action="store_true", help="Exclude headers on the list being output"
-        ),
-        "--quiet": dict(action="store_true", help="Suppress warning messages")
+        )
     },
 )
 def list_policies(argv: typing.List[str], args: argparse.Namespace):
