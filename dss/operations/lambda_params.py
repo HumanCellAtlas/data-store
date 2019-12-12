@@ -78,7 +78,6 @@ def set_ssm_parameter(env_var: str, value, quiet: bool = False) -> None:
     :param bool quiet: suppress all output if true
     """
     environment = get_ssm_environment()
-    prev_value = environment.get(env_var)
     environment[env_var] = value
     set_ssm_environment(environment)
     polite_print(
@@ -107,9 +106,12 @@ def unset_ssm_parameter(env_var: str, quiet: bool = False) -> None:
             f"Success! Unset variable in SSM store under $DSS_DEPLOYMENT_STAGE/environment:\n"
             f"    Name: {env_var}\n"
             f"    Previous value: {prev_value}\n"
-        ) 
+        )
     except KeyError:
-        polite_print(quiet, f"Nothing to unset for variable {env_var} in SSM store under $DSS_DEPLOYMENT_STAGE/environment")
+        polite_print(
+            quiet,
+            f"Nothing to unset for variable {env_var} in SSM store under $DSS_DEPLOYMENT_STAGE/environment"
+        )
 
 
 # ---
@@ -454,7 +456,7 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
             lambda_env.update(local_env)
             if args.dry_run:
                 polite_print(
-                    args.quiet, 
+                    args.quiet,
                     f"Dry-run redeploying lambda function environment from SSM store for {lambda_name}"
                 )
             else:

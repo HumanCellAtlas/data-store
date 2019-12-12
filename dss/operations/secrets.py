@@ -304,7 +304,7 @@ def del_secret(argv: typing.List[str], args: argparse.Namespace):
         if args.dry_run:
             # Delete it for fakes
             polite_print(
-                args.quiet, 
+                args.quiet,
                 f"Secret variable {secret_name} found in secrets manager, dry-run deleting it"
             )
         else:
