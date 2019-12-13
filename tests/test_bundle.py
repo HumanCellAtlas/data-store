@@ -52,8 +52,9 @@ def tearDownModule():
     MockFusilladeHandler.stop_serving()
 
 
-@testmode.standalone
-class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
+class TestBundleApiMixin(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
+    """Mixin class for tests dealing with bundle API endpoints"""
+
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -64,11 +65,109 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
         cls.app.shutdown()
 
     def setUp(self):
-        dss.Config.set_config(dss.BucketConfig.TEST)
+        Config.set_config(BucketConfig.TEST)
         self.s3_test_bucket = get_env("DSS_S3_BUCKET_TEST")
         self.gs_test_bucket = get_env("DSS_GS_BUCKET_TEST")
         self.s3_test_fixtures_bucket = get_env("DSS_S3_BUCKET_TEST_FIXTURES")
         self.gs_test_fixtures_bucket = get_env("DSS_GS_BUCKET_TEST_FIXTURES")
+
+    def put_bundle(
+            self,
+            replica: Replica,
+            bundle_uuid: str,
+            files: typing.Iterable[typing.Tuple[str, str, str]],
+            bundle_version: typing.Optional[str] = None,
+            expected_code: int = requests.codes.created):
+        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica.name)
+        if bundle_version:
+            builder.add_query("version", bundle_version)
+        url = str(builder)
+
+        resp_obj = self.assertPutResponse(
+            url,
+            expected_code,
+            json_request_body=dict(
+                files=[
+                    dict(
+                        uuid=file_uuid,
+                        version=file_version,
+                        name=file_name,
+                        indexed=False,
+                    )
+                    for file_uuid, file_version, file_name in files
+                ],
+                creator_uid=12345,
+            ),
+            headers=get_auth_header()
+        )
+
+        if 200 <= resp_obj.response.status_code < 300:
+            self.assertHeaders(
+                resp_obj.response,
+                {
+                    'content-type': "application/json",
+                }
+            )
+            self.assertIn('version', resp_obj.json)
+            self.assertIn('manifest', resp_obj.json)
+        return resp_obj
+
+    def delete_bundle(
+            self,
+            replica: Replica,
+            bundle_uuid: str,
+            bundle_version: typing.Optional[str] = None,
+            authorized: bool = True,
+            expected_code: typing.Optional[int] = None):
+        # make delete request
+        url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
+        if bundle_version:
+            url_builder = url_builder.add_query('version', bundle_version)
+        url = str(url_builder)
+
+        json_request_body = dict(reason="reason")
+        if bundle_version:
+            json_request_body['version'] = bundle_version
+
+        if not expected_code:
+            expected_code = requests.codes.ok if authorized else requests.codes.forbidden
+
+        # delete and check results
+        return self.assertDeleteResponse(
+            url,
+            expected_code,
+            json_request_body=json_request_body,
+            headers=get_auth_header(authorized=authorized)
+        )
+
+    @lru_cache()
+    def _put_bundle(self, replica=Replica.aws):
+        bundle_uuid = str(uuid.uuid4())
+        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+        self.put_bundle(replica, bundle_uuid, files=[], bundle_version=bundle_version)
+        return bundle_uuid, bundle_version
+
+    @lru_cache()
+    def _put_file(self, replica=Replica.aws):
+        file_uuid = str(uuid.uuid4())
+        resp_obj = self.upload_file_wait(
+            f"s3://{get_env('DSS_S3_BUCKET_TEST_FIXTURES')}/test_good_source_data/0",
+            Replica.aws,
+            file_uuid,
+        )
+        file_version = resp_obj.json['version']
+        return file_uuid, file_version
+
+    def _patch_files(self, number_of_files=10, replica=Replica.aws):
+        file_uuid, file_version = self._put_file(replica)
+        return [{'indexed': False,
+                 'name': str(uuid.uuid4()),
+                 'uuid': file_uuid,
+                 'version': file_version} for _ in range(number_of_files)]
+
+
+@testmode.standalone
+class TestBundleApi(TestBundleApiMixin):
 
     def test_bundle_get(self):
         self._test_bundle_get(Replica.aws)
@@ -818,100 +917,6 @@ class TestBundleApi(unittest.TestCase, TestAuthMixin, DSSAssertMixin, DSSUploadM
                         code="not_found",
                         status=requests.codes.not_found),
                     headers=get_auth_header())
-
-    def put_bundle(
-            self,
-            replica: Replica,
-            bundle_uuid: str,
-            files: typing.Iterable[typing.Tuple[str, str, str]],
-            bundle_version: typing.Optional[str] = None,
-            expected_code: int = requests.codes.created):
-        builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query("replica", replica.name)
-        if bundle_version:
-            builder.add_query("version", bundle_version)
-        url = str(builder)
-
-        resp_obj = self.assertPutResponse(
-            url,
-            expected_code,
-            json_request_body=dict(
-                files=[
-                    dict(
-                        uuid=file_uuid,
-                        version=file_version,
-                        name=file_name,
-                        indexed=False,
-                    )
-                    for file_uuid, file_version, file_name in files
-                ],
-                creator_uid=12345,
-            ),
-            headers=get_auth_header()
-        )
-
-        if 200 <= resp_obj.response.status_code < 300:
-            self.assertHeaders(
-                resp_obj.response,
-                {
-                    'content-type': "application/json",
-                }
-            )
-            self.assertIn('version', resp_obj.json)
-            self.assertIn('manifest', resp_obj.json)
-        return resp_obj
-
-    def delete_bundle(
-            self,
-            replica: Replica,
-            bundle_uuid: str,
-            bundle_version: typing.Optional[str] = None,
-            authorized: bool = True,
-            expected_code: typing.Optional[int] = None):
-        # make delete request
-        url_builder = UrlBuilder().set(path="/v1/bundles/" + bundle_uuid).add_query('replica', replica.name)
-        if bundle_version:
-            url_builder = url_builder.add_query('version', bundle_version)
-        url = str(url_builder)
-
-        json_request_body = dict(reason="reason")
-        if bundle_version:
-            json_request_body['version'] = bundle_version
-
-        if not expected_code:
-            expected_code = requests.codes.ok if authorized else requests.codes.forbidden
-
-        # delete and check results
-        return self.assertDeleteResponse(
-            url,
-            expected_code,
-            json_request_body=json_request_body,
-            headers=get_auth_header(authorized=authorized)
-        )
-
-    @lru_cache()
-    def _put_bundle(self, replica=Replica.aws):
-        bundle_uuid = str(uuid.uuid4())
-        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-        self.put_bundle(replica, bundle_uuid, files=[], bundle_version=bundle_version)
-        return bundle_uuid, bundle_version
-
-    @lru_cache()
-    def _put_file(self, replica=Replica.aws):
-        file_uuid = str(uuid.uuid4())
-        resp_obj = self.upload_file_wait(
-            f"s3://{get_env('DSS_S3_BUCKET_TEST_FIXTURES')}/test_good_source_data/0",
-            Replica.aws,
-            file_uuid,
-        )
-        file_version = resp_obj.json['version']
-        return file_uuid, file_version
-
-    def _patch_files(self, number_of_files=10, replica=Replica.aws):
-        file_uuid, file_version = self._put_file(replica)
-        return [{'indexed': False,
-                 'name': str(uuid.uuid4()),
-                 'uuid': file_uuid,
-                 'version': file_version} for _ in range(number_of_files)]
 
     def test_patch_no_version(self):
         "BAD REQUEST is returned when patching without the version."

@@ -23,18 +23,20 @@ from cloud_blobstore import BlobNotFoundError
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
+from tests import skip_on_travis
 from tests.infra import testmode
 from dss.operations import DSSOperationsCommandDispatch
 from dss.operations.util import map_bucket_results
 from dss.operations import checkout, storage, sync, secrets, lambda_params, iam, events
 from dss.operations.lambda_params import get_deployed_lambdas, fix_ssm_variable_prefix
 from dss.operations.iam import IAMSEPARATOR
+from dss.operations.secrets import SecretsChecker
 from dss.logging import configure_test_logging
 from dss.config import BucketConfig, Config, Replica, override_bucket_config
 from dss.storage.hcablobstore import FileMetadata, compose_blob_key
 from dss.util.version import datetime_to_version_format
 from tests import CaptureStdout, SwapStdin
-from tests.test_bundle import TestBundleApi
+from tests.test_bundle import TestBundleApiMixin
 from tests.infra import get_env, DSSUploadMixin, TestAuthMixin, DSSAssertMixin
 from tests.infra.server import ThreadedLocalServer
 
@@ -1385,7 +1387,7 @@ class TestOperations(unittest.TestCase):
 
 
 @testmode.integration
-class TestOperationsIntegration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DSSUploadMixin):
+class TestOperationsIntegration(TestBundleApiMixin):
     @classmethod
     def setUpClass(cls):
         cls.app = ThreadedLocalServer()
@@ -1444,6 +1446,33 @@ class TestOperationsIntegration(TestBundleApi, TestAuthMixin, DSSAssertMixin, DS
                                    [(file_uuid, file_version, "LICENSE")],
                                    bundle_version)
         return resp_obj.json, bundle_uuid
+
+
+@testmode.integration
+class TestSecretsChecker(unittest.TestCase):
+    """Test the SecretsChecker class defined in dss/operations/secrets.py"""
+    @skip_on_travis
+    def test_check_secrets(self):
+        """Check that the current stage's secrets conform to expected values"""
+        secrets.check_secrets([], argparse.Namespace())
+
+    @skip_on_travis
+    def test_custom_stage_secrets(self):
+        """
+        The SecretsChecker should not test stages that are not in the list:
+        dev, staging, integration, prod.
+        """
+        s = SecretsChecker(stage='somenonsensenamelikeprod')
+        s.run()
+
+    @skip_on_travis
+    def test_invalid_secrets(self):
+        """Check that a ValueError is raised when an unqualified email is stored in a secret."""
+        s = SecretsChecker(stage='dev')
+        # Override the email field obtained from terraform
+        s.email = ['nonsense']
+        with self.assertRaises(ValueError):
+            s.run()
 
 
 if __name__ == '__main__':
