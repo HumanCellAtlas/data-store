@@ -44,9 +44,9 @@ def verify_sync_all(argv: typing.List[str], args: argparse.Namespace):
         replica = Replica[replica]
         handle = Config.get_blobstore_handle(replica)
         for prefix in (BUNDLE_PREFIX, FILE_PREFIX, BLOB_PREFIX):
-            for name, metadata in handle.list_v2(replica.bucket, prefix=prefix):
+            for key, metadata in handle.list_v2(replica.bucket, prefix=prefix):
                 if metadata[BlobMetadataField.LAST_MODIFIED] > since:
-                    yield name
+                    yield key
 
     def _chunk(it, size):
         """Split an iterable into chunks of `size` (https://stackoverflow.com/a/22045226)"""
