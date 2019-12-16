@@ -58,7 +58,7 @@ def verify_sync_all(argv: typing.List[str], args: argparse.Namespace):
     # while the date returned by the S3 API is offset-aware, so we need to add
     # timezone information manually.
     objects_to_check = list_objects_since(args.source_replica, cutoff.replace(tzinfo=datetime.timezone.utc))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=25) as exec:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=25) as exec_:
         for chunk in _chunk(objects_to_check, 1024):
             # To call :func:`verify_sync`, we need to perform some argument
             # parsing and simulate command-line invocation.
@@ -68,7 +68,7 @@ def verify_sync_all(argv: typing.List[str], args: argparse.Namespace):
                 '--destination-replica', args.destination_replica,
                 '--keys', *chunk
             ]
-            exec.submit(verify_sync, _args, dispatch.parser.parse_args(_args))
+            exec_.submit(verify_sync, _args, dispatch.parser.parse_args(_args))
 
 
 @sync.action("verify-sync",
