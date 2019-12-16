@@ -317,6 +317,21 @@ class TestOperations(unittest.TestCase):
         with io.BytesIO(data) as fh:
             gs_blob.upload_from_file(fh, content_type="application/octet-stream")
 
+    def test_verify_sync(self):
+        """
+        Naive test of `dss-ops.py sync verify-sync`. `verify-sync` is an
+        amalgamate of other targets that are already tested in this file,
+        so just running it and seeing if it fails or not should be a
+        sufficient test case.
+        """
+        dss.Config.set_config(dss.BucketConfig.NORMAL)
+        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        sync.verify_sync_all([], argparse.Namespace(
+            source_replica='aws',
+            destination_replica='gcp',
+            since=datetime_to_version_format(yesterday)
+        ))
+
     def test_iam_aws_list_policies(self):
 
         def _get_aws_list_policies_kwargs(**kwargs):
@@ -333,23 +348,6 @@ class TestOperations(unittest.TestCase):
             for kw, val in kwargs.items():
                 custom_kwargs[kw] = val
             return custom_kwargs
-
-    def test_verify_sync(self):
-        """
-        Naive test of `dss-ops.py sync verify-sync`. `verify-sync` is an
-        amalgamate of other targets that are already tested in this file,
-        so just running it and seeing if it fails or not should be a
-        sufficient test case.
-        """
-        dss.Config.set_config(dss.BucketConfig.NORMAL)
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        sync.verify_sync_all([], argparse.Namespace(
-            source_replica='aws',
-            destination_replica='gcp',
-            since=datetime_to_version_format(yesterday)
-        ))
-
-    def test_iam_aws(self):
 
         def _get_fake_policy_document():
             """Utility function to get a fake policy document for mocking the AWS API"""
