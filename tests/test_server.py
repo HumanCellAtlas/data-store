@@ -33,7 +33,7 @@ class TestMockFusilladeServer(unittest.TestCase):
             security.assert_authorized(principal, actions, resources)
 
         # Ensure non-whitelisted principals are denied access
-        for principal in ['invalid@email.com']:
+        for principal in ['invalid-email@test-server.data.humancellatlas.org']:
             with self.assertRaises(dss.error.DSSForbiddenException):
                 security.assert_authorized(principal, actions, resources)
 

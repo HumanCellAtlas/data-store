@@ -298,7 +298,7 @@ class TestCheckoutApi(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
                         '/{0}/my_path'.format(nonexistent_bundle_uuid), '{0}/my_path'.format(nonexistent_bundle_uuid)]
         for replica in Replica:
             for format_dest in wrong_format:
-                json_request_body = dict(destination=format_dest, email='test@example.edu')
+                json_request_body = dict(destination=format_dest, email='test@test-checkout.data.humancellatlas.org')
                 with self.subTest(format_dest=format_dest):
                     self.assertResponse(method='post', path=f'/v1/bundles/{self.bundle_uuid}/checkout',
                                         expected_code=400, json_request_body=json_request_body,

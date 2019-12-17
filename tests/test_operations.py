@@ -627,8 +627,12 @@ class TestOperations(unittest.TestCase):
             # it calls the paginate() method to get a list of all users,
             # then the paginate() method twice for each user (once for groups, once for roles),
             side_effects = [
-                ["fake-user@foo.bar", "another-fake-user@baz.wuz"],
-                ["fake-group"], ["fake-role"], ["fake-group-2"], ["fake-role-2"]
+                [
+                    "fake-user@test-operations.data.humancellatlas.org",
+                    "another-fake-user@test-operations.data.humancellatlas.org"
+                ],
+                ["fake-group"], ["fake-role"],
+                ["fake-group-2"], ["fake-role-2"]
             ]
             fus_client().paginate = mock.MagicMock(side_effect=side_effects)
 
@@ -689,20 +693,36 @@ class TestOperations(unittest.TestCase):
                     _repatch_fus_client(fus_client)
                     kwargs = _get_fus_list_policies_kwargs(group_by="users")
                     iam.list_policies([], argparse.Namespace(**kwargs))
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-group-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-role-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-group-2-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-role-2-policy"
+                ]), output)
 
                 # Check exclude headers
                 with CaptureStdout() as output:
                     _repatch_fus_client(fus_client)
                     kwargs = _get_fus_list_policies_kwargs(group_by="users", exclude_headers=True)
                     iam.list_policies([], argparse.Namespace(**kwargs))
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-group-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-role-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-group-2-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-role-2-policy"
+                ]), output)
 
                 # Check write to output file
                 temp_prefix = "dss-test-operations-iam-fus-list-users-temp-output"
@@ -712,10 +732,18 @@ class TestOperations(unittest.TestCase):
                 iam.list_policies([], argparse.Namespace(**kwargs))
                 with open(fname, "r") as f:
                     output = f.read()
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-group-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["fake-user@foo.bar", "fake-role-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-group-2-policy"]), output)
-                self.assertIn(IAMSEPARATOR.join(["another-fake-user@baz.wuz", "fake-role-2-policy"]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-group-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "fake-user@test-operations.data.humancellatlas.org", "fake-role-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-group-2-policy"
+                ]), output)
+                self.assertIn(IAMSEPARATOR.join([
+                    "another-fake-user@test-operations.data.humancellatlas.org", "fake-role-2-policy"
+                ]), output)
 
         with self.subTest("List Fusillade policies grouped by groups"):
 
@@ -827,13 +855,16 @@ class TestOperations(unittest.TestCase):
             with mock.patch("dss.operations.iam.iam_client") as iam_client:
                 class MockPaginator_Users(object):
                     def paginate(self, *args, **kwargs):
-                        return [{"Users": [{"UserName": "fake-user-1@foo.bar"}, {"UserName": "fake-user-2@baz.wuz"}]}]
+                        return [{"Users": [
+                            {"UserName": "fake-user-1@test-operations.data.humancellatlas.org"},
+                            {"UserName": "fake-user-2@test-operations.data.humancellatlas.org"}
+                        ]}]
                 iam_client.get_paginator.return_value = MockPaginator_Users()
                 with CaptureStdout() as output:
                     kwargs = _get_aws_list_assets_kwargs()
                     iam.list_users([], argparse.Namespace(**kwargs))
-                self.assertIn("fake-user-1@foo.bar", output)
-                self.assertIn("fake-user-2@baz.wuz", output)
+                self.assertIn("fake-user-1@test-operations.data.humancellatlas.org", output)
+                self.assertIn("fake-user-2@test-operations.data.humancellatlas.org", output)
 
         with self.subTest("AWS list groups"):
             with mock.patch("dss.operations.iam.iam_client") as iam_client:
@@ -875,13 +906,16 @@ class TestOperations(unittest.TestCase):
 
         with self.subTest("Fusillade list users"):
             with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
-                side_effects = [["fake-user-1@foo.bar", "fake-user-2@baz.wuz"]]
+                side_effects = [[
+                    "fake-user-1@test-operations.data.humancellatlas.org",
+                    "fake-user-2@test-operations.data.humancellatlas.org"
+                ]]
                 fus_client().paginate = mock.MagicMock(side_effect=side_effects)
                 kwargs = _get_fus_list_assets_kwargs()
                 with CaptureStdout() as output:
                     iam.list_users([], argparse.Namespace(**kwargs))
-                self.assertIn("fake-user-1@foo.bar", output)
-                self.assertIn("fake-user-2@baz.wuz", output)
+                self.assertIn("fake-user-1@test-operations.data.humancellatlas.org", output)
+                self.assertIn("fake-user-2@test-operations.data.humancellatlas.org", output)
 
         with self.subTest("Fusillade list groups"):
             with mock.patch("dss.operations.iam.FusilladeClient") as fus_client:
