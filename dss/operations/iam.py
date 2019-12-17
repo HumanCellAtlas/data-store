@@ -63,7 +63,7 @@ class FusilladeClient(object):
         "integration": "https://auth.integration.data.humancellatlas.org",
         "staging": "https://auth.staging.data.humancellatlas.org",
         "testing": "https://auth.testing.data.humancellatlas.org",
-        "production": "https://auth.data.humancellatlas.org",
+        "prod": "https://auth.data.humancellatlas.org",
     }
 
     def __init__(self, stage):
