@@ -188,10 +188,11 @@ def enumerate(replica: str,
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def put(uuid: str, replica: str, json_request_body: dict, version: str):
-    security.assert_authorized(security.get_token_email(request.token_info),
-                               ["dss:PutBundle"],
-                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
+    # security.assert_authorized(security.get_token_email(request.token_info),
+    #                            ["dss:PutBundle"],
+    #                            [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     uuid = uuid.lower()
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
@@ -240,10 +241,11 @@ def bundle_file_id_metadata(bundle_file_metadata):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    security.assert_authorized(security.get_token_email(request.token_info),
-                               ["dss:PatchBundle"],
-                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
+    # security.assert_authorized(security.get_token_email(request.token_info),
+    #                            ["dss:PatchBundle"],
+    #                            [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     bundle = get_bundle_manifest(uuid, Replica[replica], version)
     if bundle is None:
         raise DSSException(404, "not_found", "Could not find bundle for UUID {}".format(uuid))
@@ -262,10 +264,11 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
 
 @dss_handler
+@security.authorized_group_required(['hca'])
 def delete(uuid: str, replica: str, json_request_body: dict, version: str = None):
-    security.assert_authorized(security.get_token_email(request.token_info),
-                               ["dss:DeleteBundle"],
-                               [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
+    # security.assert_authorized(security.get_token_email(request.token_info),
+    #                            ["dss:DeleteBundle"],
+    #                            [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
     email = security.get_token_email(request.token_info)
 
     if email not in ADMIN_USER_EMAILS:

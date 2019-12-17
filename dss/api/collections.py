@@ -62,6 +62,9 @@ def list_collections(per_page: int, start_at: int = 0):
         {'collections': [{'uuid': uuid, 'version': version}, {'uuid': uuid, 'version': version}, ... , ...]}
     """
     # TODO: Replica is unused, so this does not use replica.  Appropriate?
+    security.assert_authorized(security.get_token_email(request.token_info),
+                               ["dss:GetCollections"],
+                               [f'arn:hca:dss:${Config.deployment_stage()}:*:*/collections'])
     owner = security.get_token_email(request.token_info)
 
     collections = []
