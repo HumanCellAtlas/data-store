@@ -104,7 +104,7 @@ class TestSubscriptionsBase(ElasticsearchTestCase, TestAuthMixin, DSSAssertMixin
 
     def test_db_count_subscriptions_for_owner(self):
         """Test dynamoDB helper functions used to store and retrieve subscription information."""
-        owner = 'email@email.com'
+        owner = 'test_db_count_subscriptions_for_owner@test-subscriptions.data.humancellatlas.org'
         subscription_uuid = str(uuid.uuid4())
 
         for r in Replica:

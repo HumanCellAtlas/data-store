@@ -191,11 +191,11 @@ class TestSecurity(unittest.TestCase):
 
     def test_custom_email_claims(self):
         self.addCleanup(self.restore_email_claims, os.environ.pop('OIDC_EMAIL_CLAIM', 'EMPTY'))
-        email = 'email@email.com'
-        email_claim = 'email@claim.com'
+        email = 'test_custom_email_claims@test-utils.data.humancellatlas.org'
+        email_claim = 'test_custom_email_claims+claim@test-utils.data.humancellatlas.org'
         tests = [
             ({'email': email, Config.get_OIDC_email_claim(): email_claim}, email_claim),
-            ({Config.get_OIDC_email_claim(): 'email@claim.com'}, email_claim),
+            ({Config.get_OIDC_email_claim(): email_claim}, email_claim),
             ({'email': email}, email)
         ]
 
