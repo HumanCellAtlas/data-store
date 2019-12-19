@@ -67,7 +67,7 @@ def scrub_index_data(index_data: dict, bundle_id: str) -> list:
                                 path,
                                 [field for field in _utils.find_additional_properties(error.instance, error.schema)]
                             )
-                        extra_fields.append(fields_to_remove)
+                            extra_fields.append(fields_to_remove)
             else:
                 logger.warning(f"Unable to retrieve JSON schema information from {document} in bundle {bundle_id}.")
                 extra_documents.append(document)
