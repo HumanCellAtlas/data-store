@@ -137,6 +137,7 @@ def get(
     response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
     return response
 
+
 @dss_handler
 def enumerate(replica: str,
               prefix: typing.Optional[str] = None,
@@ -188,7 +189,7 @@ def enumerate(replica: str,
 
 
 @dss_handler
-def put(uuid: str, replica: str, json_request_body: dict, version: str):
+def put(uuid: str, replica: str, json_request_body: dict, version: str, project: str):
     security.assert_authorized(security.get_token_email(request.token_info),
                                ["dss:PutBundle"],
                                [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
@@ -197,12 +198,13 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
 
-    # build a manifest consisting of all the files.
+    # build a manifest consisting of all of the files.
     bundle_metadata = {
         BundleMetadata.FORMAT: BundleMetadata.FILE_FORMAT_VERSION,
         BundleMetadata.VERSION: version,
         BundleMetadata.FILES: files,
         BundleMetadata.CREATOR_UID: json_request_body['creator_uid'],
+        BundleMetadata.PROJECT: project
     }
 
     status_code = _save_bundle(Replica[replica], uuid, version, bundle_metadata)
