@@ -63,9 +63,6 @@ def list_collections(per_page: int, start_at: int = 0):
     """
     # TODO: Replica is unused, so this does not use replica.  Appropriate?
     owner = security.get_token_email(request.token_info)
-    security.assert_authorized(owner,
-                               ["dss:GetCollections"],
-                               [f'arn:hca:dss:${Config.deployment_stage()}:*:*/collections'])
 
     collections = []
     for collection in owner_lookup.get_collection_fqids_for_owner(owner):
