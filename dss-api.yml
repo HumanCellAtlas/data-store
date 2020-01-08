@@ -1744,7 +1744,7 @@ paths:
         - name: project
           in: query
           description: A RFC4122-compliant project ID.
-          required: false
+          required: true
           type: string
           pattern: "[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}"
         - name: version
