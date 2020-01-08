@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
-from dss.mapping.projects import put_project_for_bundle
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
 from dss.storage.bundles import get_bundle_manifest, save_bundle_manifest, enumerate_available_bundles
 from dss.storage.checkout import CheckoutError, TokenError
@@ -138,6 +137,7 @@ def get(
     response.headers['X-OpenAPI-Paginated-Content-Key'] = 'bundle.files'
     return response
 
+
 @dss_handler
 def enumerate(replica: str,
               prefix: typing.Optional[str] = None,
@@ -197,9 +197,6 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str, project:
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
-
-    # record the project-bundle association into a db table for later look-up
-    put_project_for_bundle(uuid, project)
 
     # build a manifest consisting of all of the files.
     bundle_metadata = {
