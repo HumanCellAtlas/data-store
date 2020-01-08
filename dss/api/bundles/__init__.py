@@ -11,6 +11,7 @@ from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dss import DSSException, dss_handler, DSSForbiddenException
+from dss.mapping.projects import put_project_for_bundle
 from dss.api.search import PerPageBounds
 from dss.config import Config, Replica
 from dss.storage.blobstore import idempotent_save, test_object_exists, ObjectTest
@@ -188,7 +189,7 @@ def enumerate(replica: str,
 
 
 @dss_handler
-def put(uuid: str, replica: str, json_request_body: dict, version: str):
+def put(uuid: str, replica: str, json_request_body: dict, version: str, project: str):
     security.assert_authorized(security.get_token_email(request.token_info),
                                ["dss:PutBundle"],
                                [f'arn:hca:dss:{Config.deployment_stage()}:*:bundle/{uuid}/{version}'])
@@ -196,6 +197,9 @@ def put(uuid: str, replica: str, json_request_body: dict, version: str):
 
     files = build_bundle_file_metadata(Replica[replica], json_request_body['files'])
     detect_filename_collisions(files)
+
+    # record the project-bundle association into a db table for later look-up
+    put_project_for_bundle(uuid, project)
 
     # build a manifest consisting of all the files.
     bundle_metadata = {
