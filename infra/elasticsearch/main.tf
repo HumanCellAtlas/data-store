@@ -1,8 +1,8 @@
 data aws_caller_identity current {}
 data aws_region current {}
 locals {
-  region = "${data.aws_region.current.name}"
-  account_id = "${data.aws_caller_identity.current.account_id}"
+  region =  data.aws_region.current.name
+  account_id =  data.aws_caller_identity.current.account_id
   common_tags = "${map(
     "managedBy" , "terraform",
     "Name"      , "${var.DSS_INFRA_TAG_SERVICE}-elasticsearch",
