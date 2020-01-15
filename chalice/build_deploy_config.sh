@@ -68,6 +68,12 @@ cp "$policy_json" "$stage_policy_json"
 
 if [[ ${CI:-} != true ]]; then
 	# IAM policies must be updated from an operators machine, this will not run on CI environments.
+	echo "Looking for IAM Role: $iam_role_arn"
+	if ! aws iam get-role --role-name $lambda_name; then
+		export trust_policy_path=${DSS_HOME}/iam/trust-relations/lambda.json
+		aws iam create-role --role-name $lambda_name --path / --assume-role-policy-document file://$trust_policy_path
+		echo "created IAM Role: $lambda_name, with trust policy from $trust_policy_path"
+	fi
 	echo "updating $iam_role_arn with $stage_policy_json"
 	aws iam put-role-policy --role-name $lambda_name --policy-name $lambda_name --policy-document file://$stage_policy_json
 fi
