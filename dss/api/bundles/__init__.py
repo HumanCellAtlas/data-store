@@ -41,7 +41,7 @@ def get(
         per_page: int,
         version: str = None,
         directurls: bool = False,
-        presignedurls: bool = False,
+        presignedurls: bool = True,
         token: str = None,
         start_at: int = 0,
 ):
