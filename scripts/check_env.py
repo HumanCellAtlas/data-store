@@ -22,6 +22,7 @@ def get_ssm_lambda_environment(stage: str):
 def get_local_lambda_environment():
     env = dict()
     deployment_env = ["ADMIN_USER_EMAILS"]
+    deployment_env += ["DSS_ES_ENDPOINT"]
     deployment_env += os.environ['EXPORT_ENV_VARS_TO_LAMBDA'].split()
     deployment_env.remove('DSS_VERSION')
     for name in deployment_env:
@@ -73,6 +74,6 @@ if __name__ == '__main__':
     missing_keys = missing_local_with_stage(stage=stage, ssm_env=ssm_env, local_env=local_env, filter_env=filter_env)
     different_env_values = different_local_with_stage(stage=stage, ssm_env=ssm_env, local_env=local_env, filter_env=filter_env)
     if any(missing_keys.values()):
-        print(f"Warning: Found missing in variables for : \n{json.dumps(missing_keys)}")
+        print(f"Warning: Found missing env variables between local and {stage}: \n{json.dumps(missing_keys)}")
     if any(different_env_values.values()):
         print(f"Warning: Found different env values between local and {stage}: \n{json.dumps(different_env_values)}")
