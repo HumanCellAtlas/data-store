@@ -3,13 +3,12 @@
 This script manages the deployment of Google Cloud Functions.
 """
 
-import os, sys, time, io, zipfile, random, string, binascii, datetime, argparse, base64
+import os, sys, time, io, zipfile, binascii, datetime, argparse, base64
 
 import json
 import boto3
 import socket
 import httplib2
-import google.cloud.storage
 import google.cloud.exceptions
 from apitools.base.py import http_wrapper
 from google.cloud.client import ClientWithProject
@@ -19,22 +18,27 @@ from urllib3.util.retry import Retry
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
-import dss
 import dss.util
+
 
 class GCPClient(ClientWithProject):
     SCOPE = ["https://www.googleapis.com/auth/cloud-platform",
              "https://www.googleapis.com/auth/cloudruntimeconfig"]
 
+
+# https://cloud.google.com/functions/docs/reference/rest/
 class GoogleCloudFunctionsConnection(JSONConnection):
     API_BASE_URL = "https://cloudfunctions.googleapis.com"
-    API_VERSION = "v1beta2"
+    API_VERSION = "v1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
 
+
+# https://cloud.google.com/deployment-manager/runtime-configurator/reference/rest/
 class GoogleRuntimeConfigConnection(JSONConnection):
     API_BASE_URL = "https://runtimeconfig.googleapis.com"
     API_VERSION = "v1beta1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
+
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("src_dir", help="Name of directory containing cloud function source")
@@ -109,6 +113,7 @@ config_vars = {
 
 config_ns = f"projects/{gcp_client.project}/configs"
 try:
+    # Attempt to create a new RuntimeConfig resource.
     print(grtc_conn.api_request("POST", f"/{config_ns}", data=dict(name=f"{config_ns}/{args.entry_point}")))
 except google.cloud.exceptions.Conflict:
     print(f"GRTC config {args.entry_point} found")
@@ -118,10 +123,13 @@ for k, v in config_vars.items():
     print("Writing GRTC variable", k)
     b64v = base64.b64encode(v.encode()).decode()
     try:
+        # Attempts to create a new variable within the given configuration.
         grtc_conn.api_request("POST", f"/{var_ns}", data=dict(name=f"{var_ns}/{k}", value=b64v))
     except google.cloud.exceptions.Conflict:
+        # Updates an existing variable with a new value.
         grtc_conn.api_request("PUT", f"/{var_ns}/{k}", data=dict(name=f"{var_ns}/{k}", value=b64v))
 
+# Returns a signed URL for uploading a function's source code.
 resp = gcf_conn.api_request('POST', f'/{gcf_ns}:generateUploadUrl', content_type='application/zip')
 upload_url = resp['uploadUrl']
 
@@ -173,11 +181,30 @@ gcf_config = {
         "resource": "projects/_/buckets/" + os.environ['DSS_GS_BUCKET']
     }
 }
+# updated_vars = ['name',
+#                 'runtime',
+#                 'entryPoint',
+#                 'timeout',
+#                 'availableMemoryMb',
+#                 'sourceUploadUrl',
+#                 'labels',
+#                 'eventTrigger.resource',
+#                 'eventTrigger.eventType',
+#                 'eventTrigger.service']
+updated_vars = ['eventTrigger.eventType',
+                'eventTrigger.resource']
+
+# A comma-separated list of fully qualified names of fields. Example: "user.displayName,photo".
+update_mask = {'updateMask': ','.join(updated_vars)}
 
 try:
+    # Attempt to create a new cloud function.
     deploy_op = gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config)
 except google.cloud.exceptions.Conflict:
-    deploy_op = gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config)
+    # Update an existing cloud function.
+    deploy_op = gcf_conn.api_request("PATCH", f"/{gcf_ns}/{args.gcf_name}",
+                                     data=gcf_config,
+                                     query_params=update_mask)
 
 sys.stderr.write("Waiting for deployment...")
 sys.stderr.flush()
@@ -186,13 +213,13 @@ for t in range(600):
     if response.get("response", {}).get("status") == "READY":
         break
     if response.get("error"):
-        sys.stderr.write(f'ERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
+        sys.stderr.write(f'\nERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
                          f'{response["error"]}\n'
                          f'See: https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto '
                          f'for status codes. ^\n'
                          f'Error code 10 seems to be a common return code when Google messes up internally: '
-                         f'https://github.com/GoogleCloudPlatform/cloud-functions-go/issues/30\n')
-        break
+                         f'https://github.com/GoogleCloudPlatform/cloud-functions-go/issues/30\n\n')
+        raise RuntimeError
     sys.stderr.write(".")
     sys.stderr.flush()
     time.sleep(5)
@@ -202,4 +229,4 @@ sys.stderr.write("done\n")
 
 res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
 print(res)
-assert res["status"] == "READY"
+assert res["status"] == "READY" or res["status"] == "ACTIVE"
