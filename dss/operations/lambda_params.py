@@ -421,7 +421,8 @@ def lambda_update(argv: typing.List[str], args: argparse.Namespace):
         - To see the current environment stored in the SSM store, run:
             ./dss-ops.py lambda environment
 
-        Are you really sure you want to update the SSM store environment?
+        Are you really sure you want to update the environment in SSM store
+        "{get_ssm_variable_prefix()}"?
         (Type 'y' or 'yes' to confirm):
         """
         response = input(confirm)
