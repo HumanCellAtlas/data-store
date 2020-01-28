@@ -123,8 +123,8 @@ class TestSecurity(unittest.TestCase):
                     security.assert_authorized_issuer(issuer)
 
     def test_authorizated_group(self):
-        valid_token_infos = [{"https://auth.data.humancellatlas.org/group": 'hca'},
-                             {"https://auth.data.humancellatlas.org/group": 'public'}
+        valid_token_infos = [{os.environ['OIDC_GROUP_CLAIM']: 'hca'},
+                             {os.environ['OIDC_GROUP_CLAIM']: 'public'}
                              ]
         for token_info in valid_token_infos:
             with self.subTest(token_info):
@@ -133,9 +133,9 @@ class TestSecurity(unittest.TestCase):
     def test_not_authorizated_group(self):
         invalid_token_info = [{'sub': "travis-test@human-cell-atlas-travis-test.gmail.com"},
                               {'sub': "travis-test@travis-test.iam.gserviceaccount.com.gmail.com"},
-                              {"https://auth.data.humancellatlas.org/group": ''},
-                              {"https://auth.data.humancellatlas.org/group": 'public'},
-                              {"https://auth.data.humancellatlas.org/group": 'something_else'}
+                              {os.environ['OIDC_GROUP_CLAIM']: ''},
+                              {os.environ['OIDC_GROUP_CLAIM']: 'public'},
+                              {os.environ['OIDC_GROUP_CLAIM']: 'something_else'}
                               ]
         for token_info in invalid_token_info:
             with self.subTest(token_info):
