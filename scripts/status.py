@@ -6,6 +6,7 @@ The GitLab Token is expected to be stored in AWS secretsmanager with secret id "
 Usage: `scripts/status.py owner repo branch`
 Example: `scripts/status.py HumanCellAtlas data-store master`
 """
+import os
 import json
 import boto3
 import requests
@@ -19,9 +20,10 @@ parser.add_argument("branch", help="Branch to return most recent CI pipeline sta
 args = parser.parse_args()
 
 sm = boto3.client("secretsmanager")
+parameter_store = os.environ.get("DSS_PARAMETER_STORE")
 
-gitlab_api = sm.get_secret_value(SecretId="dcp/dss/gitlab-api")['SecretString']
-gitlab_token = sm.get_secret_value(SecretId="dcp/dss/gitlab-token")['SecretString']
+gitlab_api = sm.get_secret_value(SecretId=f"{parameter_store}/gitlab-api")['SecretString']
+gitlab_token = sm.get_secret_value(SecretId=f"{parameter_store}/gitlab-token")['SecretString']
 slug = urllib.parse.quote_plus(f"{args.owner}/{args.repo}")
 r = requests.get(
     f"https://{gitlab_api}/projects/{slug}/pipelines",
