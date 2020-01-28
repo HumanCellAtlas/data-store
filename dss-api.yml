@@ -29,7 +29,7 @@ info:
 
 
     The following Python code demonstrates an example configuration of the popular Requests library per the above guidance:
-    
+
     ```
 
     import requests, requests.packages.urllib3.util.retry
@@ -110,7 +110,7 @@ basePath: /v1
 produces:
   - application/json
 securityDefinitions:
-  dcpAuth:
+  OauthSecurity:
     description: >
       The following claims must be present in the JWT:
       - '{{OIDC_GROUP_CLAIM}}': the user group this user belongs.
@@ -119,11 +119,12 @@ securityDefinitions:
       - '{{OIDC_EMAIL_CLAIM}}': the email of the requester
     type: oauth2
     flow: implicit
-    authorizationUrl: https://auth.data.humancellatlas.org/authorize
+    authorizationUrl: {{AUTH_URL}}/authorize
     scopes:
       email: This scope value requests access to the email and email_verified Claims.
       openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
       offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
+    x-audience: https://{{API_DOMAIN_NAME}}/
 paths:
   /search:
     post:
@@ -482,7 +483,7 @@ paths:
                   - code
     put:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Create a new version of a file
       description: >
         Create a new version of a file with a given UUID. The contents of the file are provided by the client by
@@ -643,7 +644,7 @@ paths:
   /subscriptions:
     get:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Retrieve a user\'s event subscriptions.
       description: |
         Return a list of associated subscriptions.
@@ -697,7 +698,7 @@ paths:
                   - code
     put:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Create an event subscription.
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
@@ -926,7 +927,7 @@ paths:
   /subscriptions/{uuid}:
     get:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Retrieve an event subscription given a UUID.
       description: >
         Given a subscription UUID, return the associated subscription.
@@ -981,7 +982,7 @@ paths:
                   - code
     delete:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Delete an event subscription.
       description: >
         Delete a registered event subscription. The associated query will no longer trigger a callback
@@ -1043,7 +1044,7 @@ paths:
     get:
       operationId: dss.api.collections.list_collections
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Retrieve a user's collections.
       description: >
         Return a list of a user's collections.
@@ -1133,7 +1134,7 @@ paths:
                   - code
     put:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Create a collection.
       description: >
         Create a new collection.
@@ -1213,7 +1214,7 @@ paths:
   /collections/{uuid}:
     get:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Retrieve a collection given a UUID.
       description: Given a collection UUID, return the associated collection object.
       parameters:
@@ -1266,7 +1267,7 @@ paths:
                   - code
     patch:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Update a collection.
       description: >
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
@@ -1429,7 +1430,7 @@ paths:
                   - code
     delete:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Delete a collection.
       description: >
         Delete a collection.
@@ -1729,7 +1730,7 @@ paths:
           $ref: '#/responses/GatewayTimeout'
     put:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Create a bundle
       description: >
         Create a new version of a bundle with a given UUID.  The list of file UUID and versions to be included must be
@@ -1876,7 +1877,7 @@ paths:
                   - code
     patch:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Update a bundle.
       description: >
         Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
@@ -2024,7 +2025,7 @@ paths:
                   - code
     delete:
       security:
-        - dcpAuth: []
+        - OauthSecurity: []
       summary: Delete a bundle or a specific bundle version
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
