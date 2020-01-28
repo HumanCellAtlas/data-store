@@ -1,4 +1,4 @@
-# HCA DSS environment variables: local configuration file
+# DSS environment variables: local configuration file
 
 # Copy this file to environment.local then set your site-specific or deploy-specific environment variable values there.
 # These settings override the values in the "environment" file in this directory.
