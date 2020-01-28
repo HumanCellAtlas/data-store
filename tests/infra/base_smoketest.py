@@ -77,10 +77,10 @@ class BaseSmokeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.replicas = {param['starting_replica'] for param in cls.params}
-        if os.path.exists("dcp-cli"):
-            run("git pull --recurse-submodules", cwd="dcp-cli")
+        if os.path.exists("data-store-cli"):
+            run("git pull --recurse-submodules", cwd="data-store-cli")
         else:
-            run("git clone --depth 1 --recurse-submodules https://github.com/HumanCellAtlas/dcp-cli")
+            run("git clone --depth 1 --recurse-submodules https://github.com/DataBiosphere/data-store-cli")
         cls.workdir = tempfile.TemporaryDirectory(dir=os.getcwd(), prefix="smoketest-", suffix=".tmp")
         if not args.clean:
             # Disable workdir destructor
@@ -91,7 +91,7 @@ class BaseSmokeTest(unittest.TestCase):
         venv = os.path.join(cls.workdir.name, "venv")
         run(f"virtualenv -p {sys.executable} {venv}")
         cls.venv_bin = os.path.join(venv, "bin", "")
-        run(f"{cls.venv_bin}pip install --upgrade .", cwd="dcp-cli")
+        run(f"{cls.venv_bin}pip install --upgrade .", cwd="data-store-cli")
 
         # Configure the CLI
         #
