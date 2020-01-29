@@ -130,8 +130,8 @@ TOKENINFO_FUNC=dss.util.security.verify_jwt
 OIDC_AUDIENCE=https://dss.dev.ucsc-cgp-redwood.org/
 AUTH_URL=https://auth.ucsc.ucsc-cgp-redwood.org
 OPENID_PROVIDER=https://dev-4lyab62k.auth0.com/
-OIDC_EMAIL_CLAIM="${OIDC_AUDIENCE}/email"
-OIDC_GROUP_CLAIM="${OIDC_AUDIENCE}/group"
+OIDC_EMAIL_CLAIM="${OIDC_AUDIENCE}email"
+OIDC_GROUP_CLAIM="${OIDC_AUDIENCE}group"
 
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
