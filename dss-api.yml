@@ -124,7 +124,7 @@ securityDefinitions:
       email: This scope value requests access to the email and email_verified Claims.
       openid: see http://openid.net/specs/openid-connect-core-1_0.html#ScopeClaims
       offline_access: see http://openid.net/specs/openid-connect-core-1_0.html#OfflineAccessPrivacy
-    x-audience: https://{{API_DOMAIN_NAME}}/
+    x-audience: https://{{OIDC_AUDIENCE}}
     x-email-claim: {{OIDC_EMAIL_CLAIM}}
     x-group-claim: {{OIDC_GROUP_CLAIM}}
 paths:

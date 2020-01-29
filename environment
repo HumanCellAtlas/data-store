@@ -127,7 +127,7 @@ API_DOMAIN_NAME="dss.${DSS_DEPLOYMENT_STAGE}.ucsc-cgp-redwood.org"
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 # TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE once seperate deployments are made
 
-OIDC_AUDIENCE=https://dss.dev.ucsc-cgp-redwood.org
+OIDC_AUDIENCE=https://dss.dev.ucsc-cgp-redwood.org/
 AUTH_URL=https://auth.ucsc.ucsc-cgp-redwood.org
 OPENID_PROVIDER=https://dev-4lyab62k.auth0.com/
 OIDC_EMAIL_CLAIM="${OIDC_AUDIENCE}/email"
