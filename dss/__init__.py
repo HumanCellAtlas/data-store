@@ -176,7 +176,7 @@ class DSSRequestBodyValidator(RequestBodyValidator):
 
 def create_app():
     app = DSSApp(
-        __name__,
+        app_name=f'dss-{os.environ.get("DSS_DEPLOYMENT_STAGE")}',
         validator_map={
             'body': DSSRequestBodyValidator,
             'parameter': DSSParameterValidator,

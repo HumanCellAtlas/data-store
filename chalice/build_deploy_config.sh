@@ -41,6 +41,7 @@ else
            .$stage.rest_api_id = env.api_id | \
            .$stage.region = env.AWS_DEFAULT_REGION | \
            .$stage.api_gateway_stage = env.stage | \
+           .$stage.app_name = env.lambda_name | \
            .$stage.backend = \"api\" | \
            .$stage.chalice_version = \"1.0.1\" | \
            .$stage.lambda_functions = {}" > "$deployed_json"
