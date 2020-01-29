@@ -126,11 +126,13 @@ API_DOMAIN_NAME="dss.${DSS_DEPLOYMENT_STAGE}.ucsc-cgp-redwood.org"
 
 TOKENINFO_FUNC=dss.util.security.verify_jwt
 # TODO remove https://dev.data.humancellatlas.org/ from OIDC_AUDIENCE once seperate deployments are made
-OIDC_AUDIENCE="https://auth.ucsc.ucsc-cgp-redwood.org"
-AUTH_URL=https://auth.testing.data.humancellatlas.org
-OPENID_PROVIDER=https://humancellatlas.auth0.com/
+
+OIDC_AUDIENCE=https://dss.dev.ucsc-cgp-redwood.org
+AUTH_URL=https://auth.ucsc.ucsc-cgp-redwood.org
+OPENID_PROVIDER=https://dev-4lyab62k.auth0.com/
 OIDC_EMAIL_CLAIM="${OIDC_AUDIENCE}/email"
 OIDC_GROUP_CLAIM="${OIDC_AUDIENCE}/group"
+
 NOTIFY_URL=https://${API_DOMAIN_NAME}/internal/notify
 DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
     platform-hca.iam.gserviceaccount.com
@@ -143,8 +145,9 @@ DSS_ES_INSTANCE_TYPE="t2.small.elasticsearch"
 DSS_ES_VOLUME_SIZE="35"
 DSS_ES_INSTANCE_COUNT="1"
 DSS_ES_DOMAIN_INDEX_LOGS_ENABLED="false"
-ACM_CERTIFICATE_IDENTIFIER="896d7302-5135-436c-8280-3c90f85c77d9"
+
 DSS_ZONE_NAME="ucsc-cgp-redwood.org."
+ACM_CERTIFICATE_IDENTIFIER="f2e44868-a6dc-47ad-83c6-3dd81548ee66" # cert for *.dev.ucsc-cgp-redwood.org
 PYTHONWARNINGS=ignore:ResourceWarning,ignore::UserWarning:zipfile:
 DSS_SECRETS_STORE="${DSS_PLATFORM}/dss"
 DSS_PARAMETER_STORE="${DSS_PLATFORM}/dss"
