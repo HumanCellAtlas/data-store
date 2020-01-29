@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
-Script to ensure that the secrets in an HCA stage deployment are not accidentally
-changed to personal user credentials (or otherwise).  Requires Terraform.
-
-Will only check the canoncial HCA stages ('dev', 'integration', 'staging').
+Script to ensure that secrets in a stage deployment are not accidentally
+changed to personal user credentials (or otherwise). Requires Terraform.
 
 Run to check current deployment:
     `scripts/check_deployment_secrets.py`
@@ -15,17 +13,21 @@ Checking occurs as follows:
 
 #1
 For the json returned from the secret in GOOGLE_APPLICATION_SECRETS_SECRETS_NAME:
-    `auth_uri` should be in ['https://auth.data.humancellatlas.org/authorize',
-                             'https://auth.dev.data.humancellatlas.org/authorize']
-    `token_uri` should be in ['https://auth.data.humancellatlas.org/oauth/token',
-                              'https://auth.dev.data.humancellatlas.org/oauth/token']
+    `auth_uri` should be ['https://auth.ucsc.ucsc-cgp-redwood.org/oauth/authorize',
+                         'https://auth.dev.ucsc.ucsc-cgp-redwood.org/oauth/authorize']
+    `token_uri` should be ['https://auth.ucsc.ucsc-cgp-redwood.org/oauth/token',
+                          'https://auth.dev.ucsc.ucsc-cgp-redwood.org/oauth/token']
 
 #2
 For the json returned from the secret in GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME:
-    `project_id` should be `human-cell-atlas-travis-test`
+    `project_id` should be `platform-hca` (see note below)
     `type` should be `service_account`
     `client_email` should be the user account returned from the terraform output "service_account".
-                   For example: dev should be `travis-test@human-cell-atlas-travis-test.iam.gserviceaccount.com`.
+                   For example: dev should be `travis-test@platform-hca.iam.gserviceaccount.com`.
+
+Note: platform-hca was the old name of the Google Cloud Project. The project name was updated to
+"platform-sc". However, the project ID was not updated and is still "platform-hca". The project ID
+is what is used in service account emails, URLs, etc.
 """
 import subprocess
 import os
@@ -37,9 +39,8 @@ import copy
 class SecretsChecker(object):
     def __init__(self, stage):
         self.stage = stage
-        self.stages = {'dev': 'environment',
-                       'integration': 'environment.integration',
-                       'staging': 'environment.staging'}
+        self.stages = {'dev': 'environment'}
+                       #'staging': 'environment.staging'}
 
         self.missing_secrets = []
         self.malformed_secrets = []
@@ -57,13 +58,13 @@ class SecretsChecker(object):
         self.stage_env = self.get_stage_env(self.stages[self.stage])
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
-        self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-        self.project = ['human-cell-atlas-travis-test']
+        self.email = [f'{self.service_account}@platform-hca.iam.gserviceaccount.com']
+        self.project = ['platform-hca']
         self.type = ['service_account']
-        self.auth_uri = ['https://auth.data.humancellatlas.org/oauth/authorize',
-                         'https://auth.dev.data.humancellatlas.org/oauth/authorize']
-        self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
-                          'https://auth.dev.data.humancellatlas.org/oauth/token']
+        self.auth_uri = ['https://auth.ucsc.ucsc-cgp-redwood.org/oauth/authorize',
+                         'https://auth.dev.ucsc.ucsc-cgp-redwood.org/oauth/authorize']
+        self.token_uri = ['https://auth.ucsc.ucsc-cgp-redwood.org/oauth/token',
+                          'https://auth.dev.ucsc.ucsc-cgp-redwood.org/oauth/token']
 
         self.app_secret_name = os.environ['GOOGLE_APPLICATION_SECRETS_SECRETS_NAME']
         self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
@@ -118,7 +119,7 @@ class SecretsChecker(object):
         if not terraform_output:
             print(f'Terraform output returned nothing.\n'
                   f'Check your terraform setup by running "terraform output {output_name}" in dir:\n'
-                  f'data-store/infra/gcp_service_account\n\n')
+                  f'$DSS_HOME/infra/gcp_service_account\n\n')
         return terraform_output.strip()
 
     def check(self, current, expected, secret):
