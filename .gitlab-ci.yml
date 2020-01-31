@@ -40,6 +40,7 @@ before_script:
 trufflehog:
   stage: trufflehog
   script:
+    - ls ~/.aws
     - pip install trufflehog
     - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
     - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
