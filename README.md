@@ -5,7 +5,7 @@
 
 This repository maintains the data storage system. We use this
 [Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
-meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/humancellatlas/data-store) to track our GitHub work.
+meeting notes, and [this Zenhub board](https://app.zenhub.com/workspace/o/databiosphere/data-store) to track our GitHub work.
 
 ## Overview
 
@@ -14,7 +14,7 @@ The DSS is a replicated data storage system designed for hosting large sets of s
 for interacting with the data and is built using [Chalice](https://github.com/aws/chalice),
 [API Gateway](https://aws.amazon.com/api-gateway/) and [AWS Lambda](https://aws.amazon.com/lambda/). The API also
 implements [Step Functions](https://aws.amazon.com/step-functions/) to orchestrate Lambdas for long-running tasks such
-as large file writes. You can find the API documentation and give it a try [here](https://dss.data.humancellatlas.org/).
+as large file writes. You can find the API documentation and give it a try [here](https://dss.data.ucsc-cgp-redwood.org/).
 
 ### Architectural Diagram
 
@@ -72,7 +72,7 @@ The DSS API Swagger is also available at <https://dss.dev.ucsc-cgp-redwood.org>.
     * [CI/CD with Travis CI and GitLab](#cicd-with-travis-ci-and-gitlab)
     * [Authorizing Travis CI to deploy](#authorizing-travis-ci-to-deploy)
     * [Authorizing the event relay](#authorizing-the-event-relay)
-  * [Using the HCA Data Store CLI Client](#using-the-hca-data-store-cli-client)
+  * [Using the Data Store CLI Client](#using-the-data-store-cli-client)
   * [Checking Indexing](#checking-indexing)
   * [Running Tests](#running-tests)
     * [Test suites](#test-suites)
@@ -98,7 +98,7 @@ If your deployment fails due to access restrictions, please consult your local s
 The first step to get started with the data store is to clone this repository:
 
 ```
-git clone git@github.com:HumanCellAtlas/data-store.git
+git clone git@github.com:DataBiosphere/data-store.git
 cd data-store
 ```
 
@@ -679,24 +679,26 @@ credentials once from your workstation. After this is done, Travis CI will be ab
 repeat the `make deploy` step from a privileged account any time you change the IAM policies templates in
 `iam/policy-templates/`.
 
-## Using the HCA Data Store CLI Client
+## Using the Data Store CLI Client
 
-Now that you have deployed the data store, the next step is to use the HCA Data Store CLI to upload and download data to
-the system. See [data-store-cli](https://github.com/HumanCellAtlas/data-store-cli) for installation instructions. The
-client requires you change `hca/api_spec.json` to point to the correct host, schemes, and, possibly, basePath. Examples
-of CLI use:
+Now that you have deployed the data store, the next step is to use the Data Store CLI client `dbio` to upload and
+download data to the system. See the [data-store-cli](https://github.com/DataBiosphere/data-store-cli) repo for 
+installation instructions. 
+
+Examples of CLI use:
 
     # list bundles
-    hca dss post-search --es-query "{}" --replica=aws | less
+    dbio dss post-search --es-query "{}" --replica=aws | less
+
     # upload full bundle
-    hca dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
+    dbio dss upload --replica aws --staging-bucket staging_bucket_name --src-dir ${DSS_HOME}/tests/fixtures/datafiles/example_bundle
 
 ## Checking Indexing
 
 Now that you've uploaded data, the next step is to confirm the indexing is working properly and you can query the
 indexed metadata.
 
-    hca dss post-search --replica aws --es-query '
+    dbio dss post-search --replica aws --es-query '
     {
         "query": {
             "bool": {
