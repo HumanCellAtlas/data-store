@@ -5,8 +5,8 @@
 #   `docker push {docker_username}/{tag_key}:{tag_value}`
 # For example,
 #   `docker login
-#   `docker build -f allspark.Dockerfile -t humancellatlas/dss-build-box .`
-#   `docker push humancellatlas/dss-build-box`
+#   `docker build -f allspark.Dockerfile -t quay.io/ucsc_cgl/dss-build-box .`
+#   `docker push quay.io/ucsc_cgl/dss-build-box`
 #
 # Now reference the image in .gitlab-ci.yml with the line:
 #   `image: {docker_username}/{tag_key}:{tag_value}

@@ -1,5 +1,5 @@
-image: humancellatlas/dss-build-box
-# The Docker image `humancellatlas/dss-build-box` is created through a manual process from
+image: quay.io/ucsc_cgl/dss-build-box
+# The Docker image `quay.io/ucsc_cgl/dss-build-box` is created through a manual process from
 # `${DSS_HOME}/allspark.Dockerfile`. See the contents of `${DSS_HOME}/allspark.Dockerfile` # creation and usage instructions.
 
 variables:
@@ -7,6 +7,7 @@ variables:
   DSS_ES_TIMEOUT: 30
   DSS_UNITTEST_OPTS: "-v -b"
   GITHUB_API: "https://api.github.com"
+  AWS_DEFAULT_REGION: us-east-1
 
 stages:
   - trufflehog
@@ -27,6 +28,10 @@ before_script:
   - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
   -   source environment.$CI_COMMIT_REF_NAME
   - fi
+  - export ADMIN_USER_EMAILS=test@ucsc.edu
+  - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+  - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+  - aws configure set region $AWS_DEFAULT_REGION
   - scripts/dss-ops.py secrets get application_secrets.json > application_secrets.json
   - scripts/dss-ops.py secrets get gcp-credentials.json > gcp-credentials.json
   - export GOOGLE_APPLICATION_CREDENTIALS=$(pwd -P)/gcp-credentials.json
