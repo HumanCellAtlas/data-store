@@ -494,17 +494,17 @@ paths:
 
         The metadata fields required are:
 
-        - hca-dss-sha256: SHA-256 checksum of the file
+        - dss-sha256: SHA-256 checksum of the file
 
-        - hca-dss-sha1: SHA-1 checksum of the file
+        - dss-sha1: SHA-1 checksum of the file
 
-        - hca-dss-s3_etag: S3 ETAG checksum of the file.  See https://stackoverflow.com/q/12186993 for the
+        - dss-s3_etag: S3 ETAG checksum of the file.  See https://stackoverflow.com/q/12186993 for the
         general algorithm for how checksum is calculated.  For files smaller than 64MB, this is the MD5 checksum
         of the file.  For files larger than 64MB but smaller than 640,000MB, we use 64MB chunks.  For files larger than
         640,000MB, we use a chunk size equal to the total file size divided by 10000, rounded up to the nearest MB.
         MB, in this section, refers to 1,048,576 bytes.  Note that 640,000MB is not the same as 640GB!
 
-        - hca-dss-crc32c: CRC-32C checksum of the file
+        - dss-crc32c: CRC-32C checksum of the file
       parameters:
         - name: uuid
           in: path
