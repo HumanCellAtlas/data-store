@@ -41,9 +41,6 @@ setup_fusillade:
     -   source environment.$CI_COMMIT_REF_NAME
     - fi
     - export ADMIN_USER_EMAILS=test@ucsc.edu
-    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-    - aws configure set region $AWS_DEFAULT_REGION
     - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
     - FUS_STAGE=$DSS_DEPLOYMENT_STAGE
     - python -m json.tool ./temp-roles.json > /dev/null || exit 1
