@@ -44,7 +44,7 @@ trufflehog:
   script:
     - pip install trufflehog
     - wget -O regex.json https://raw.githubusercontent.com/HumanCellAtlas/dcplib/master/components/trufflehog_regex_patterns.json
-    - trufflehog --regex --rules regex.json --entropy=False https://github.com/HumanCellAtlas/data-store.git
+    - trufflehog --regex --rules regex.json --entropy=False https://github.com/DataBiosphere/data-store.git
 
 unit_tests:
   extends: .tests
