@@ -69,10 +69,10 @@ class TestCollections(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with io.BytesIO(encoded) as fh, ChecksummingSink(write_chunk_size=chunk_size) as sink:
             sink.write(fh.read())
             sums = sink.get_checksums()
-            metadata = {'hca-dss-crc32c': sums['crc32c'].lower(),
-                        'hca-dss-s3_etag': sums['s3_etag'].lower(),
-                        'hca-dss-sha1': sums['sha1'].lower(),
-                        'hca-dss-sha256': sums['sha256'].lower()}
+            metadata = {'dss-crc32c': sums['crc32c'].lower(),
+                        'dss-s3_etag': sums['s3_etag'].lower(),
+                        'dss-sha1': sums['sha1'].lower(),
+                        'dss-sha256': sums['sha256'].lower()}
             fh.seek(0)
 
             if replica == 'gcp':

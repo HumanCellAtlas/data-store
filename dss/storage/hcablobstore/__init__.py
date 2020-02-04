@@ -15,16 +15,16 @@ class HCABlobStore:
     """
     MANDATORY_STAGING_METADATA = dict(
         SHA1=dict(
-            keyname="hca-dss-sha1",
+            keyname="dss-sha1",
             downcase=True),
         CRC32C=dict(
-            keyname="hca-dss-crc32c",
+            keyname="dss-crc32c",
             downcase=True),
         SHA256=dict(
-            keyname="hca-dss-sha256",
+            keyname="dss-sha256",
             downcase=True),
         S3_ETAG=dict(
-            keyname="hca-dss-s3_etag",
+            keyname="dss-s3_etag",
             downcase=True),
     )
 

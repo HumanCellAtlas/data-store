@@ -479,10 +479,10 @@ class TestSyncDaemonLargeManifests(unittest.TestCase, DSSSyncMixin):
             sink.write(data)
             sums = sink.get_checksums()
         metadata = {
-            'hca-dss-crc32c': sums['crc32c'].lower(),
-            'hca-dss-s3_etag': sums['s3_etag'].lower(),
-            'hca-dss-sha1': sums['sha1'].lower(),
-            'hca-dss-sha256': sums['sha256'].lower(),
+            'dss-crc32c': sums['crc32c'].lower(),
+            'dss-s3_etag': sums['s3_etag'].lower(),
+            'dss-sha1': sums['sha1'].lower(),
+            'dss-sha256': sums['sha256'].lower(),
         }
         fh = io.BytesIO(data)
         blob = self.s3.Bucket(os.environ['DSS_S3_BUCKET_TEST']).Object(key)

@@ -249,10 +249,10 @@ def put(uuid: str, json_request_body: dict, version: str):
 
     dst_key = ("blobs/" + ".".join(
         (
-            metadata['hca-dss-sha256'],
-            metadata['hca-dss-sha1'],
-            metadata['hca-dss-s3_etag'],
-            metadata['hca-dss-crc32c'],
+            metadata['dss-sha256'],
+            metadata['dss-sha1'],
+            metadata['dss-s3_etag'],
+            metadata['dss-crc32c'],
         )
     )).lower()
 
@@ -271,10 +271,10 @@ def put(uuid: str, json_request_body: dict, version: str):
         FileMetadata.VERSION: version,
         FileMetadata.CONTENT_TYPE: content_type,
         FileMetadata.SIZE: size,
-        FileMetadata.CRC32C: metadata['hca-dss-crc32c'],
-        FileMetadata.S3_ETAG: metadata['hca-dss-s3_etag'],
-        FileMetadata.SHA1: metadata['hca-dss-sha1'],
-        FileMetadata.SHA256: metadata['hca-dss-sha256'],
+        FileMetadata.CRC32C: metadata['dss-crc32c'],
+        FileMetadata.S3_ETAG: metadata['dss-s3_etag'],
+        FileMetadata.SHA1: metadata['dss-sha1'],
+        FileMetadata.SHA256: metadata['dss-sha256'],
     }
     file_metadata_json = json.dumps(file_metadata)
 

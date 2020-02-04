@@ -51,10 +51,10 @@ class Uploader:
 
             sums = sink.get_checksums()
 
-        metadata['hca-dss-crc32c'] = sums['crc32c'].lower()
-        metadata['hca-dss-s3_etag'] = sums['s3_etag'].lower()
-        metadata['hca-dss-sha1'] = sums['sha1'].lower()
-        metadata['hca-dss-sha256'] = sums['sha256'].lower()
+        metadata['dss-crc32c'] = sums['crc32c'].lower()
+        metadata['dss-s3_etag'] = sums['s3_etag'].lower()
+        metadata['dss-sha1'] = sums['sha1'].lower()
+        metadata['dss-sha256'] = sums['sha256'].lower()
 
         self.upload_file(local_path, remote_path, content_type, metadata, *args, **kwargs)  # noqa
 
