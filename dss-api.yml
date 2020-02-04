@@ -1,13 +1,13 @@
 swagger: '2.0'
 info:
-  title: HCA DCP DSS API
+  title: DataBiosphere DSS API
   description: >
-    Human Cell Atlas Data Coordination Platform Data Storage System API
+    DataBiosphere Data Storage System API
 
     # HTTP semantics
 
     The DSS API requires clients to follow certain HTTP protocol semantics that may require extra configuration in your
-    HTTP client. The reference CLI and SDK (https://hca.readthedocs.io/) is pre-configured to do this. If writing your own
+    HTTP client. The reference CLI and SDK (https://dbio.readthedocs.io/) is pre-configured to do this. If writing your own
     client, please note the following:
 
 
@@ -47,7 +47,7 @@ info:
 
     s.mount('https://', a)
 
-    print(s.get("https://dss.data.humancellatlas.org").content)
+    print(s.get("https://dss.dev.ucsc-cgp-redwood.org").content)
 
     ```
 
@@ -95,7 +95,7 @@ info:
     [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
     which is based on [RFC 5988](https://tools.ietf.org/html/rfc5988). When the results of an API call exceed the
     page size specified, the HTTP response will contain a `Link` header of the following form:
-    `Link: <https://dss.data.humancellatlas.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
+    `Link: <https://dss.dev.ucsc-cgp-redwood.org/v1/search?replica=aws&per_page=100&search_after=123>; rel="next"`.
     The URL in the header refers to the next page of the results to be fetched; if no `Link rel="next"` URL is
     included, then all results have been fetched. The client should recognize and parse the `Link` header
     appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
@@ -351,8 +351,8 @@ paths:
 
         This endpoint returns a HTTP redirect to another HTTP endpoint with the file contents.
 
-        NOTE When using the HCA CLI, this will stream the file to stdout and may need to be piped.  For example,
-          `hca dss get-file --uuid UUID --replica aws > result.txt`
+        NOTE When using the DataBiosphere DSS CLI, this will stream the file to stdout and may need to be piped.  For example,
+          `dbio dss get-file --uuid UUID --replica aws > result.txt`
       parameters:
         - name: uuid
           in: path
