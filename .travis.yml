@@ -30,6 +30,7 @@ install:
 before_script:
 - export -n _JAVA_OPTIONS # https://github.com/travis-ci/travis-ci/issues/8408
 - source environment
+- export ADMIN_USER_EMAILS=test@ucsc.edu
 
 script:
 - python3 scripts/swagger_auth.py --travis
