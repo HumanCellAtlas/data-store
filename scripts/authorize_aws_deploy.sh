@@ -13,7 +13,7 @@ if [[ $# != 2 ]]; then
     echo "test and deploy the DSS application. Run this script using privileged"
     echo "(IAM write access) IAM credentials."
     echo "Usage: $(basename $0) iam-principal-type iam-principal-name"
-    echo "Example: $(basename $0) user hca-test"
+    echo "Example: $(basename $0) group travis-ci"
     exit 1
 fi
 

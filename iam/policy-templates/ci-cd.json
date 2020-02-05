@@ -16,12 +16,8 @@
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_INTEGRATION/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_INTEGRATION/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER/*"
       ]
     },
@@ -36,12 +32,8 @@
       "Resource": [
         "arn:aws:s3:::$DSS_S3_BUCKET",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST",
-        "arn:aws:s3:::$DSS_S3_BUCKET_INTEGRATION",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_INTEGRATION",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING"
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST"
       ]
     },
     {
@@ -54,13 +46,9 @@
         "arn:aws:s3:::$DSS_S3_BUCKET", "arn:aws:s3:::$DSS_S3_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST", "arn:aws:s3:::$DSS_S3_BUCKET_TEST/*",
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES", "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_INTEGRATION", "arn:aws:s3:::$DSS_S3_BUCKET_INTEGRATION/*",
-        "arn:aws:s3:::$DSS_S3_BUCKET_STAGING", "arn:aws:s3:::$DSS_S3_BUCKET_STAGING/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_INTEGRATION", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_INTEGRATION/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_STAGING/*"
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER/*"
       ]
     },
     {
@@ -86,8 +74,6 @@
       "Resource": [
         "arn:aws:lambda:*:$account_id:function:dss-*",
         "arn:aws:es:*:$account_id:domain/dss-index-dev", "arn:aws:es:*:$account_id:domain/dss-index-dev/*",
-        "arn:aws:es:*:$account_id:domain/dss-index-integration", "arn:aws:es:*:$account_id:domain/dss-index-integration/*",
-        "arn:aws:es:*:$account_id:domain/dss-index-staging", "arn:aws:es:*:$account_id:domain/dss-index-staging/*",
         "arn:aws:sns:*:$account_id:dss-*",
         "arn:aws:sns:*:$account_id:domovoi-s3-events-*",
         "arn:aws:states:*:$account_id:*:dss-*"
@@ -107,11 +93,7 @@
         "arn:aws:dynamodb:*:$account_id:table/scalability_test_result",
         "arn:aws:dynamodb:*:$account_id:table/scalability_test/stream/*",
         "arn:aws:dynamodb:*:$account_id:table/dss-async-state-dev",
-        "arn:aws:dynamodb:*:$account_id:table/dss-async-state-integration",
-        "arn:aws:dynamodb:*:$account_id:table/dss-async-state-staging",
         "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-dev",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-integration",
-        "arn:aws:dynamodb:*:$account_id:table/dss-subscriptions-v2-*-staging",
         "arn:aws:dynamodb:*:$account_id:table/dss-collections-db-*"
       ]
     },
@@ -171,9 +153,7 @@
       ],
       "Resource": [
         "arn:aws:sqs:*:$account_id:dss-notify-test-*",
-        "arn:aws:sqs:*:$account_id:dss-notify-dev-*",
-        "arn:aws:sqs:*:$account_id:dss-notify-integration-*",
-        "arn:aws:sqs:*:$account_id:dss-notify-staging-*"
+        "arn:aws:sqs:*:$account_id:dss-notify-dev-*"
       ]
     },
     {
