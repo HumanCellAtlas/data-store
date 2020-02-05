@@ -51,10 +51,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
         cls.app = ThreadedLocalServer()
         cls.app.start()
         cls.bad_checksums = {
-            'hca-dss-crc32c': '!!!!',
-            'hca-dss-s3_etag': '@@@@',
-            'hca-dss-sha1': '####',
-            'hca-dss-sha256': '$$$$'
+            'dss-crc32c': '!!!!',
+            'dss-s3_etag': '@@@@',
+            'dss-sha1': '####',
+            'dss-sha256': '$$$$'
         }
 
     @classmethod
@@ -85,11 +85,11 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
     def test_checksum_regex(self):
         # tests/fixtures/datafiles/011c7340-9b3c-4d62-bf49-090d79daf198.2017-06-20T214506.766634Z
         good_checksums = {
-            "hca-dss-crc32c": "e16e07b9",
-            "hca-dss-s3_etag": "3b83ef96387f14655fc854ddc3c6bd57",
-            "hca-dss-sha1": "2b8b815229aa8a61e483fb4ba0588b8b6c491890",
-            "hca-dss-sha256": "cfc7749b96f63bd31c3c42b5c471bf75681405"
-                              "3e847c10f3eb003417bc523d30"
+            "dss-crc32c": "e16e07b9",
+            "dss-s3_etag": "3b83ef96387f14655fc854ddc3c6bd57",
+            "dss-sha1": "2b8b815229aa8a61e483fb4ba0588b8b6c491890",
+            "dss-sha256": "cfc7749b96f63bd31c3c42b5c471bf75681405"
+                          "3e847c10f3eb003417bc523d30"
         }
         for sum_type, fmt in checksum_format.items():
             self.assertEqual(re.match(fmt, self.bad_checksums[sum_type]), None)
@@ -160,10 +160,10 @@ class TestFileApi(unittest.TestCase, TestAuthMixin, DSSUploadMixin, DSSAssertMix
             self.upload_file(source_url, file_uuid, bundle_uuid=bundle_uuid, version=version)
 
             metadata = handle.get_user_metadata(test_bucket, src_key)
-            dst_key = ("blobs/" + ".".join([metadata['hca-dss-sha256'],
-                                            metadata['hca-dss-sha1'],
-                                            metadata['hca-dss-s3_etag'],
-                                            metadata['hca-dss-crc32c']])).lower()
+            dst_key = ("blobs/" + ".".join([metadata['dss-sha256'],
+                                            metadata['dss-sha1'],
+                                            metadata['dss-s3_etag'],
+                                            metadata['dss-crc32c']])).lower()
 
             for wait_to_upload_into_checkout_bucket in range(30):
                 try:
