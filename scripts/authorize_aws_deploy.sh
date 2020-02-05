@@ -17,6 +17,7 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
+export platform=$DSS_PLATFORM
 export iam_principal_type=$1 iam_principal_name=$2
 export account_id=$(aws sts get-caller-identity | jq -r .Account)
 policy_json="$(dirname $0)/../iam/policy-templates/ci-cd.json"
@@ -38,7 +39,7 @@ envsubst_vars='$DSS_DEPLOYMENT_STAGE
 
 aws iam put-${iam_principal_type}-policy \
     --${iam_principal_type}-name $iam_principal_name \
-    --policy-name hca-dss-ci-cd \
+    --policy-name ${platform}-dss-ci-cd \
     --policy-document file://<(cat "$policy_json" | \
                                    envsubst "$envsubst_vars" | \
                                    jq -c 'del(.Statement[].Sid)')
