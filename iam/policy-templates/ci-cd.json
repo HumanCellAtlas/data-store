@@ -48,7 +48,8 @@
         "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES", "arn:aws:s3:::$DSS_S3_BUCKET_TEST_FIXTURES/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET/*",
         "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST/*",
-        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER/*"
+        "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER", "arn:aws:s3:::$DSS_S3_CHECKOUT_BUCKET_TEST_USER/*",
+        "arn:aws:s3:::$DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE","arn:aws:s3:::$DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE/*"
       ]
     },
     {
