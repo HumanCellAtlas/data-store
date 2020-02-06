@@ -173,3 +173,17 @@ resource aws_s3_bucket dss_s3_events_bucket {
   }
   tags = merge(local.common_tags, local.aws_tags)
 }
+
+resource aws_s3_bucket dss_cli_bucket_test {
+  count = var.DSS_DEPLOYMENT_STAGE == "dev" ? 1 : 0
+  bucket = var.DSS_CLI_BUCKET_TEST
+  lifecycle_rule {
+    id = "prune old things"
+    enabled = true
+    abort_incomplete_multipart_upload_days = var.DSS_BLOB_TTL_DAYS
+    expiration {
+      days = var.DSS_BLOB_TTL_DAYS
+    }
+  }
+  tags = merge(local.common_tags, local.aws_tags)
+}
