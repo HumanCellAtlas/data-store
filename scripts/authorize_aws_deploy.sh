@@ -25,16 +25,16 @@ envsubst_vars='$DSS_DEPLOYMENT_STAGE
                $DSS_S3_BUCKET
                $DSS_S3_BUCKET_TEST
                $DSS_S3_BUCKET_TEST_FIXTURES
-               $DSS_S3_BUCKET_INTEGRATION
-               $DSS_S3_BUCKET_STAGING
                $DSS_S3_CHECKOUT_BUCKET
                $DSS_S3_CHECKOUT_BUCKET_TEST
                $DSS_S3_CHECKOUT_BUCKET_TEST_USER
-               $DSS_S3_CHECKOUT_BUCKET_INTEGRATION
-               $DSS_S3_CHECKOUT_BUCKET_STAGING
+               $DSS_CLI_BUCKET_TEST
                $DSS_SECRETS_STORE
+               $DSS_PARAMETER_STORE
                $DSS_EVENT_RELAY_AWS_ACCESS_KEY_ID_SECRETS_NAME
                $DSS_EVENT_RELAY_AWS_SECRET_ACCESS_KEY_SECRETS_NAME
+               $DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE
+               $DSS_FLASHFLOOD_BUCKET
                $account_id'
 
 aws iam put-${iam_principal_type}-policy \
