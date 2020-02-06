@@ -13,7 +13,6 @@ stages:
   - trufflehog
   - test
   - deploy
-  - fusillade
   - integration_test
   - scale_and_performance
   - release
@@ -74,34 +73,6 @@ test_subscriptions:
   extends: .tests
   script:
     - make -j1 tests/test_subscriptions.py
-
-setup_fusillade:
-  stage: fusillade
-  script:
-    - git clone -b master https://github.com/HumanCellAtlas/dcp-fusillade.git
-    - cd dcp-fusillade
-    - source environment
-    - cd ..
-# need to re-source data-store environment in case dcp-fusillade overwrites vars (e.g. AWS_DEFAULT_REGION)
-    - source environment
-    - if [[ -f "environment.$CI_COMMIT_REF_NAME" ]]; then
-    -   source environment.$CI_COMMIT_REF_NAME
-    - fi
-    - cat ./roles.json | sed "s/\${stage}/${DSS_DEPLOYMENT_STAGE}/g" > temp-roles.json
-    - if [ "$DSS_DEPLOYMENT_STAGE" == "dev" ]; then
-    -   FUS_STAGE='testing'
-    - else
-    -   FUS_STAGE=$DSS_DEPLOYMENT_STAGE
-    - fi
-    - python -m json.tool ./temp-roles.json > /dev/null || exit 1
-    - dcp-fusillade/scripts/setup_fusillade.py --file temp-roles.json --force $FUS_STAGE
-    - scripts/check_fusillade.py $FUS_STAGE
-  except:
-    - schedules
-  only:
-    - master
-    - integration
-    - staging
 
 deploy:
   stage: deploy
