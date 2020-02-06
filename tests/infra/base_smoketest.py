@@ -103,7 +103,7 @@ class BaseSmokeTest(unittest.TestCase):
 
     def upload_bundle(self, replica, bucket, src_dir):
         """ uploads bundle to DSS, returns response from CLI """
-        create_res = run_for_json(f"{self.venv_bin}hca dss upload "
+        create_res = run_for_json(f"{self.venv_bin}dbio dss upload "
                                   f"--replica {replica.name} "
                                   f"--staging-bucket {bucket} "
                                   f"--src-dir {src_dir}")
@@ -111,12 +111,12 @@ class BaseSmokeTest(unittest.TestCase):
 
     def get_bundle(self, replica, bundle_uuid):
         """ returns bundle manifest from DSS"""
-        return run_for_json(f"{self.venv_bin}hca dss get-bundle --replica {replica.name}"
+        return run_for_json(f"{self.venv_bin}dbio dss get-bundle --replica {replica.name}"
                             f" --uuid {bundle_uuid}")
 
     def _test_get_event(self, replica, bundle_uuid, bundle_version, event_should_exist=True):
         if event_should_exist:
-            res = run_for_json(f"{self.venv_bin}hca dss get-event --replica {replica.name}"
+            res = run_for_json(f"{self.venv_bin}dbio dss get-event --replica {replica.name}"
                                f" --uuid {bundle_uuid}"
                                f" --version {bundle_version}")
             self.assertEqual(res['manifest']['version'], bundle_version)
@@ -129,7 +129,7 @@ class BaseSmokeTest(unittest.TestCase):
             pass
 
     def _test_replay_event(self, replica, bundle_uuid, bundle_version):
-        res = run_for_json(f"{self.venv_bin}hca dss get-events --replica aws --per-page 10"
+        res = run_for_json(f"{self.venv_bin}dbio dss get-events --replica aws --per-page 10"
                            f" --from-date {bundle_version}"
                            f" --no-paginate")
         for stream in res['event_streams']:
@@ -148,7 +148,7 @@ class BaseSmokeTest(unittest.TestCase):
 
     def checkout_initiate(self, replica, bundle_uuid):
         """ initiates a bundle checkout, return the checkout job"""
-        res = run_for_json(f"{self.venv_bin}hca dss post-bundles-checkout --uuid {bundle_uuid} "
+        res = run_for_json(f"{self.venv_bin}dbio dss post-bundles-checkout --uuid {bundle_uuid} "
                            f"--replica {replica.name}")
         print(f"Checkout jobId: {res['checkout_job_id']}")
         return res
@@ -157,7 +157,7 @@ class BaseSmokeTest(unittest.TestCase):
                        checkout_job_id, checkout_bucket, file_count):
         """ asserts that the checkout mechanism is operational """
         for i in range(10):
-            res = run_for_json(f"{self.venv_bin}hca dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
+            res = run_for_json(f"{self.venv_bin}dbio dss get-bundles-checkout --checkout-job-id {checkout_job_id} "
                                f"--replica {starting_replica.name}")
             status = res['status']
             self.assertGreater(len(status), 0)
@@ -177,21 +177,21 @@ class BaseSmokeTest(unittest.TestCase):
 
     def post_search_es(self, replica, es_query):
         """ post-search using es, returns post-search response """
-        return run_for_json(f'{self.venv_bin}hca dss post-search  --es-query {es_query} --replica {replica.name} '
+        return run_for_json(f'{self.venv_bin}dbio dss post-search  --es-query {es_query} --replica {replica.name} '
                             f'--no-paginate')
 
     def put_subscription(self, replica, subscription_type, query, url):
 
         def subscription_put_es(replica, es_query, url):
             """ creates es subscription, return the response"""
-            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+            return run_for_json([f'{self.venv_bin}dbio', 'dss', 'put-subscription',
                                  '--callback-url', url,
                                  '--method', 'PUT',
                                  '--es-query', json.dumps(es_query),
                                  '--replica', replica.name])
 
         def subscription_put_jmespath(replica, jmespath_query, url):
-            return run_for_json([f'{self.venv_bin}hca', 'dss', 'put-subscription',
+            return run_for_json([f'{self.venv_bin}dbio', 'dss', 'put-subscription',
                                  '--callback-url', url,
                                  '--method', 'PUT',
                                  '--jmespath-query', f"{jmespath_query}",
@@ -204,7 +204,7 @@ class BaseSmokeTest(unittest.TestCase):
 
     def subscription_delete(self, replica, subscription_type, uuid):
         """ delete's subscription created, should be wrapped in self.addCleanup() """
-        self.addCleanup(run, f"{self.venv_bin}hca dss delete-subscription --replica {replica.name} "
+        self.addCleanup(run, f"{self.venv_bin}dbio dss delete-subscription --replica {replica.name} "
                              f"--uuid {uuid} "
                              f"--subscription-type {subscription_type}")
 
@@ -215,12 +215,12 @@ class BaseSmokeTest(unittest.TestCase):
 
     def get_subscriptions(self, replica, subscription_type):
         """ returns all subscriptions"""
-        return run_for_json(f"{self.venv_bin}hca dss get-subscriptions --replica {replica.name}"
+        return run_for_json(f"{self.venv_bin}dbio dss get-subscriptions --replica {replica.name}"
                             f" --subscription-type {subscription_type}  ")
 
     def get_subscription(self, replica, subscription_type, uuid):
         """ returns all subscriptions"""
-        return run_for_json(f"{self.venv_bin}hca dss get-subscription --replica {replica.name}"
+        return run_for_json(f"{self.venv_bin}dbio dss get-subscription --replica {replica.name}"
                             f" --subscription-type {subscription_type} --uuid {uuid} ")
 
     def get_bundle_enumerations(self, replica, per_page=500, prefix=None, search_after=None, token=None):
@@ -228,7 +228,7 @@ class BaseSmokeTest(unittest.TestCase):
         passed_args = {"replica": replica, "per-page": per_page, "prefix": prefix,
                        "search-after": search_after, "token": token}
         command_args = [f'--{key} {value}' for key, value in passed_args.items() if value is not None]
-        command = f"{self.venv_bin}hca dss get-bundles-all {' '.join(command_args)} --no-paginate"
+        command = f"{self.venv_bin}dbio dss get-bundles-all {' '.join(command_args)} --no-paginate"
         resp = run_for_json(command)
         return resp
 
@@ -241,7 +241,7 @@ class BaseSmokeTest(unittest.TestCase):
     @staticmethod
     def _download_bundle(replica_name: str, bundle_uuid: str, workdir: str, venv_bin: str):
         with tempfile.TemporaryDirectory(prefix=f'{workdir}/') as tempdir:
-            run(f"{venv_bin}hca dss download --replica {replica_name} --bundle-uuid {bundle_uuid}"
+            run(f"{venv_bin}dbio dss download --replica {replica_name} --bundle-uuid {bundle_uuid}"
                 f" --download-dir {tempdir}")
 
     def _test_replica_sync(self, current_replica, bundle_uuid):
