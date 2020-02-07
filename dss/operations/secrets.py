@@ -362,13 +362,16 @@ class SecretsChecker(object):
         self.stage_env = self.get_stage_env(self.stages[self.stage])
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
-        self.email = [f'{self.service_account}@human-cell-atlas-travis-test.iam.gserviceaccount.com']
-        self.project = ['human-cell-atlas-travis-test']
+        # the value `platform-hca` is used here rather than `platform-sc` due to other developers wanting
+        # change the project name, it would be better to use os.getenv("GCP_PROJECT_NAME") but we cant do w/ this google
+        # project....
+        self.project = f'platform-hca'
+        self.email = [f'{self.service_account}@{self.project}.iam.gserviceaccount.com']
+
         self.type = ['service_account']
-        self.auth_uri = ['https://auth.data.humancellatlas.org/oauth/authorize',
-                         'https://auth.dev.data.humancellatlas.org/oauth/authorize']
-        self.token_uri = ['https://auth.data.humancellatlas.org/oauth/token',
-                          'https://auth.dev.data.humancellatlas.org/oauth/token']
+        self.auth_url = os.getenv('AUTH_URL')
+        self.auth_uri = [f'{self.auth_url}/oauth/authorize']
+        self.token_uri = [f'{self.auth_url}/oauth/token']
 
         self.app_secret_name = os.environ['GOOGLE_APPLICATION_SECRETS_SECRETS_NAME']
         self.gcp_cred_secret_name = os.environ['GOOGLE_APPLICATION_CREDENTIALS_SECRETS_NAME']
