@@ -121,7 +121,7 @@ class Smoketest(BaseSmokeTest):
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Tombstone the bundle on replica {replica}"):
-                run_for_json(f"{self.venv_bin}hca dss delete-bundle --uuid {bundle_uuid} --version {bundle_version} "
+                run_for_json(f"{self.venv_bin}dbio dss delete-bundle --uuid {bundle_uuid} --version {bundle_version} "
                              f"--reason 'smoke test' --replica {replica.name}")
 
         for replica, (subscription_id, notification_key) in notifications_proofs.items():
@@ -161,7 +161,7 @@ class Smoketest(BaseSmokeTest):
             self.smoketest(**param)
 
             with self.subTest(f"{param['starting_replica'].name}: Run a CLI search."):
-                run(f"{self.venv_bin}hca dss post-search --es-query='{{}}' "
+                run(f"{self.venv_bin}dbio dss post-search --es-query='{{}}' "
                     f"--replica {param['starting_replica'].name} --no-paginate > /dev/null")
 
 
