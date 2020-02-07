@@ -362,10 +362,7 @@ class SecretsChecker(object):
         self.stage_env = self.get_stage_env(self.stages[self.stage])
         self.service_account = self.fetch_terraform_output("service_account", "gcp_service_account").strip()
 
-        # the value `platform-hca` is used here rather than `platform-sc` due to other developers wanting
-        # change the project name, it would be better to use os.getenv("GCP_PROJECT_NAME") but we cant do w/ this google
-        # project....
-        self.project = f'platform-hca'
+        self.project = os.environ['GCP_PROJECT_ID']
         self.email = [f'{self.service_account}@{self.project}.iam.gserviceaccount.com']
 
         self.type = ['service_account']

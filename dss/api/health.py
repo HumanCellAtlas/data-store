@@ -62,7 +62,7 @@ def _get_event_relay_status():
     er_status = False
     try:
         er_name = "projects/{}/locations/{}/functions/{}".format(
-            os.environ["GCP_PROJECT_NAME"], os.environ["GCP_DEFAULT_REGION"],
+            os.environ["GCP_PROJECT_ID"], os.environ["GCP_DEFAULT_REGION"],
             os.environ["DSS_EVENT_RELAY_NAME"] + os.environ["DSS_DEPLOYMENT_STAGE"])
         service = discovery.build('cloudfunctions', 'v1', cache_discovery=False)
         er_res = service.projects().locations().functions().get(name=er_name).execute()
