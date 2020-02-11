@@ -101,7 +101,9 @@ info:
     appropriately according to RFC 5988, and retrieve the next page if requested by the user, or if all results
     are being retrieved.
 
+    # Security
 
+    [![Alt text](//cdn.auth0.com/oss/badges/a0-badge-light.png)](https://auth0.com/?utm_source=oss&utm_medium=gp&utm_campaign=oss)
   version: "0.0.2"
 host: {{API_DOMAIN_NAME}}
 schemes:
