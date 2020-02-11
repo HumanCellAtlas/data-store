@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/DataBiosphere/data-store.svg?branch=master)](https://travis-ci.com/DataBiosphere/data-store)
 [![codecov](https://codecov.io/gh/DataBiosphere/data-store/branch/master/graph/badge.svg)](https://codecov.io/gh/DataBiosphere/data-store)
+<a width="120" height="20" href="https://auth0.com/?utm_source=oss&utm_medium=gp&utm_campaign=oss" target="_blank" alt="Single Sign On & Token Based Authentication - Auth0">
+<img height="40" alt="JWT Auth for open source projects" src="https://cdn.auth0.com/oss/badges/a0-badge-light.png"/></a>
 
 This repository maintains the data storage system. We use this
 [Google Drive folder](https://drive.google.com/open?id=0B-_4IWxXwazQbWE5YmtqUWx3RVE) for design docs and
