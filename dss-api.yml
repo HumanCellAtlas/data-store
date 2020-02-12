@@ -4,7 +4,7 @@ info:
   description: >
     DataBiosphere Data Storage System API
 
-    # HTTP semantics
+    **HTTP Semantics:**
 
     The DSS API requires clients to follow certain HTTP protocol semantics that may require extra configuration in your
     HTTP client. The reference CLI and SDK (https://dbio.readthedocs.io/) is pre-configured to do this. If writing your own
@@ -51,7 +51,7 @@ info:
 
     ```
 
-    # Subscriptions
+    **Subscriptions:**
 
     DSS supports webhook subscriptions for data events like bundle creation and deletion. Webhooks are callbacks to a public
     HTTPS endpoint provided by your application. When an event matching your subscription occurs, DSS will send a push
@@ -82,14 +82,14 @@ info:
     ```
 
 
-    # Special String Formats
+    **Special String Formats:**
 
     **DSS_VERSION**: a timestamp that generally follows [RFC3339](https://tools.ietf.org/html/rfc3339#section-5.6)
     format guide. However there are a few differences. DSS_VERSION must always be in UTC time, ':' are removed from
     the time, and the fractional seconds extends to 6 decimal places. Using the first example found [here](https://tools.ietf.org/html/rfc3339#section-5.8),
     the RFC3339 version would be `1985-04-12T23:20:50.52Z` while the DSS_VERSION would be `1985-04-12T232050.520000Z`
 
-    # Pagination
+    **Pagination:**
 
     The DSS API supports pagination in a manner consistent with the
     [GitHub API](https://developer.github.com/v3/guides/traversing-with-pagination/),
@@ -133,7 +133,7 @@ paths:
       description: >
         Accepts Elasticsearch JSON query and returns matching bundle identifiers
 
-        # Index design
+        **Index Design:**
 
         The metadata seach index is implemented as a
         [document-oriented database](https://en.wikipedia.org/wiki/Document-oriented_database)
@@ -188,7 +188,7 @@ paths:
         files. Each bundle document is a concatenation of the metadata on the project it belongs to and the files it
         contains.
 
-        # Limitations to index design
+        **Limitations to Index Design:**
 
         There are limitations to the design of DSS's metadata search index. A few important ones are listed below.
 
