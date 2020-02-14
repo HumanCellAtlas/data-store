@@ -145,7 +145,7 @@ def analytics_reply(method, uri):
 
 
 def get_chalice_app(flask_app) -> DSSChaliceApp:
-    app = DSSChaliceApp(app_name=flask_app.name, configure_logs=False)
+    app = DSSChaliceApp(app_name=f"{flask_app.name}-{os.environ['DSS_DEPLOYMENT_STAGE']}", configure_logs=False)
 
     @time_limited(app)
     def dispatch(*args, **kwargs):

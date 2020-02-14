@@ -52,7 +52,8 @@ cat "$config_json" | jq ".stages.$stage.tags.DSS_DEPLOY_ORIGIN=\"$DEPLOY_ORIGIN\
 	.stages.$stage.tags.service=\"${DSS_INFRA_TAG_SERVICE}\"  | \
 	.stages.$stage.tags.project=\"$DSS_INFRA_TAG_PROJECT\" | \
 	.stages.$stage.tags.owner=\"${DSS_INFRA_TAG_OWNER}\" | \
-	.stages.$stage.tags.env=\"${DSS_DEPLOYMENT_STAGE}\""  | sponge "$config_json"
+	.stages.$stage.tags.env=\"${DSS_DEPLOYMENT_STAGE}\" | \
+	.stages.$stage.app_name=\"env.lambda_name\"" | sponge "$config_json"
 
 env_json=$(aws ssm get-parameter --name /${DSS_PARAMETER_STORE}/${DSS_DEPLOYMENT_STAGE}/environment | jq -r .Parameter.Value)
 for var in $(echo $env_json | jq -r keys[]); do
