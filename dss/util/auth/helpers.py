@@ -95,4 +95,3 @@ def assert_authorized_issuer(token: typing.Mapping[str, typing.Any]) -> None:
         return
     logger.info(f"Token issuer not authorized: {issuer}")
     raise DSSForbiddenException()
-

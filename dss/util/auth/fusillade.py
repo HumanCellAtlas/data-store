@@ -1,15 +1,16 @@
 import logging
 import typing
-
+import requests
 from dss import Config
 from dss.error import DSSForbiddenException, DSSException
-from dss.util.authorize import Authorize
+from .authorize import Authorize
 
 logger = logging.getLogger(__name__)
 
 
 class Fusillade(Authorize):
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
+        self.session = requests.Session()
         pass
 
     def security_flow(self, authz_methods: typing.List[str], *args, **kwargs):
@@ -26,11 +27,11 @@ class Fusillade(Authorize):
     def assert_authorized(self, principal: str,
                           actions: typing.List[str],
                           resources: typing.List[str]):
-        resp = super().session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
-                                    headers=Config.get_ServiceAccountManager().get_authorization_header(),
-                                    json={"action": actions,
-                                          "resource": resources,
-                                          "principal": principal})
+        resp = self.session.post(f"{Config.get_authz_url()}/v1/policies/evaluate",
+                                 headers=Config.get_ServiceAccountManager().get_authorization_header(),
+                                 json={"action": actions,
+                                       "resource": resources,
+                                       "principal": principal})
         resp.raise_for_status()
         resp_json = resp.json()
         if not resp_json.get('result'):
@@ -41,4 +42,3 @@ class Fusillade(Authorize):
             return
         logger.info(f"User not in authorized group: {group}, {token}")
         raise DSSForbiddenException()
-

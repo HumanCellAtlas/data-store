@@ -2,8 +2,8 @@
 import functools
 from flask import request
 
-from dss.util.authorize import Authorize
-from dss.util.authenticate.helpers import verify_jwt
+from dss.util.auth import AuthHandler
+from dss.util.auth.helpers import verify_jwt
 
 # is it possible to create something here that can have different auth mechanisms?
 # can this information be handed to the system from the wrapper?
@@ -17,7 +17,7 @@ def security_assert():
         def wrapper(*args, **kwargs):
             # verify jwt being passed.
             verify_jwt(request.token_info)
-            authz_handler = Authorize()
+            authz_handler = AuthHandler()  # this function returns a class derived from Authorization
             authz_handler.security_flow(request.token_info)
             # perform auth mapping
             return func(*args, **kwargs)
