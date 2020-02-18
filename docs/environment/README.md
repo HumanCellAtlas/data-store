@@ -4,6 +4,7 @@ Environment Variable | Description
 `ADMIN_USER_EMAILS_SECRETS_NAME` | The name of the secret stored in AWS Secrets Manager.
 `ADMIN_USER_EMAILS` |
 `API_DOMAIN_NAME` | The domain of the API host.
+`AUTH_BACKEND` | Backend system for authorization
 `AWS_DEFAULT_OUTPUT` | The default output format for AWS CLI commands.
 `AWS_DEFAULT_REGION` | The default region that the AWS CLI and boto3 will use.
 `AWS_SDK_LOAD_CONFIG` | Needed for Terraform to correctly use AWS assumed roles

@@ -118,6 +118,7 @@ class Config:
     _TRUSTED_GOOGLE_PROJECTS: typing.Optional[typing.List[str]] = None
     _OIDC_AUDIENCE: typing.Optional[typing.List[str]] = None
     _AUTH_URL: typing.Optional[str] = None
+    _AUTH_BACKEND: typing.Optional[str] = None
     _SAM: security.DCPServiceAccountManager = None
 
     test_index_suffix = IndexSuffix()
@@ -434,6 +435,12 @@ class Config:
         if Config._AUTH_URL is None:
             Config._AUTH_URL = Config._get_required_envvar("AUTH_URL")
         return Config._AUTH_URL
+
+    @staticmethod
+    def get_auth_backend():
+        if Config._AUTH_BACKEND is None:
+            Config._AUTH_BACKEND = Config._get_required_envvar("AUTH_BACKEND")
+        return Config._AUTH_BACKEND
 
     @staticmethod
     def get_ServiceAccountManager() -> security.DCPServiceAccountManager:
