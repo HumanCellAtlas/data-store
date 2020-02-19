@@ -19,7 +19,8 @@ from dss.storage.checkout import CheckoutError, TokenError
 from dss.storage.checkout.bundle import get_dst_bundle_prefix, verify_checkout
 from dss.storage.identifiers import BundleTombstoneID, FileFQID, BUNDLE_PREFIX
 from dss.storage.hcablobstore import BundleFileMetadata, BundleMetadata, FileMetadata
-from dss.util import UrlBuilder, security, hashabledict
+from dss.util import UrlBuilder, hashabledict
+from dss.util.auth.helpers import get_token_email
 from dss.util.version import datetime_to_version_format
 
 
@@ -257,7 +258,7 @@ def patch(uuid: str, json_request_body: dict, replica: str, version: str):
 
 @dss_handler
 def delete(uuid: str, replica: str, json_request_body: dict, version: str = None):
-    email = security.get_token_email(request.token_info)
+    email = get_token_email(request.token_info)
 
     if email not in ADMIN_USER_EMAILS:
         raise DSSForbiddenException("You can't delete bundles with these credentials!")
