@@ -454,7 +454,7 @@ class TestSyncDaemonLargeManifests(unittest.TestCase, DSSSyncMixin):
         bundle_uuid = str(uuid.uuid4())
         bundle_version = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H%M%S.%fZ"))
         with mock.patch.object(bundles_api.security, "request"):
-            with mock.patch.object(bundles_api.security, "assert_authorized_group"):
+            with mock.patch.object(bundles_api.security, "assert_security"):
                 with mock.patch.object(bundles_api, "nestedcontext"):
                     with self.flask_app.test_request_context('/'):
                         bundles_api.put(bundle_uuid, "aws", dict(creator_uid=1, files=files), bundle_version)
@@ -498,7 +498,7 @@ class TestSyncDaemonLargeManifests(unittest.TestCase, DSSSyncMixin):
             return file_uuid, file_version
 
         with mock.patch.object(files_api.security, "request"):
-            with mock.patch.object(files_api.security, "assert_authorized_group"):
+            with mock.patch.object(files_api.security, "assert_security"):
                 with ThreadPoolExecutor(max_workers=20) as e:
                     futures = [e.submit(_put) for _ in range(number_of_files)]
                     return [future.result() for future in futures]

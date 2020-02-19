@@ -14,6 +14,7 @@ from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
 from dss.util import UrlBuilder, security, multipart_parallel_upload
+from dss.util.auth import helpers
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
 from tests.infra import testmode
@@ -110,7 +111,7 @@ class TestSecurity(unittest.TestCase):
                          ]
         for issuer in valid_issuers:
             with self.subTest(issuer):
-                security.assert_authorized_issuer(issuer)
+                helpers.assert_authorized_issuer(issuer)
 
     def test_not_authorized_issuer(self):
         invalid_issuers = [{'iss': "https://project.auth0.com/"},
@@ -120,7 +121,7 @@ class TestSecurity(unittest.TestCase):
         for issuer in invalid_issuers:
             with self.subTest(issuer):
                 with self.assertRaises(DSSForbiddenException):
-                    security.assert_authorized_issuer(issuer)
+                    helpers.assert_authorized_issuer(issuer)
 
     def test_authorizated_group(self):
         valid_token_infos = [{os.environ['OIDC_GROUP_CLAIM']: 'hca'},
@@ -128,7 +129,7 @@ class TestSecurity(unittest.TestCase):
                              ]
         for token_info in valid_token_infos:
             with self.subTest(token_info):
-                security.assert_authorized_group(['hca', 'public'], token_info)
+                helpers.assert_authorized_group(['hca', 'public'], token_info)
 
     def test_not_authorizated_group(self):
         invalid_token_info = [{'sub': "travis-test@human-cell-atlas-travis-test.gmail.com"},
@@ -140,7 +141,7 @@ class TestSecurity(unittest.TestCase):
         for token_info in invalid_token_info:
             with self.subTest(token_info):
                 with self.assertRaises(DSSForbiddenException):
-                    security.assert_authorized_group(['hca'], token_info)
+                    helpers.assert_authorized_group(['hca'], token_info)
 
     @mock.patch('dss.Config._OIDC_AUDIENCE', new=["https://dev.data.humancellatlas.org/",
                                                   "https://data.humancellatlas.org/"])
@@ -158,7 +159,7 @@ class TestSecurity(unittest.TestCase):
         ]
         for jwt in jwts_positive:
             with self.subTest("Positive: " + jwt):
-                security.verify_jwt(jwt)
+                helpers.verify_jwt(jwt)
         for jwt in jwt_negative:
             with self.subTest("Negative: " + jwt):
                 self.assertRaises(dss.error.DSSException, security.verify_jwt, jwt)
@@ -187,7 +188,7 @@ class TestSecurity(unittest.TestCase):
         for jwt in jwts:
             with self.subTest(jwt):
                 with self.assertRaises(DSSException):
-                    security.verify_jwt(jwt)
+                    helpers.verify_jwt(jwt)
 
     def test_custom_email_claims(self):
         self.addCleanup(self.restore_email_claims, os.environ.pop('OIDC_EMAIL_CLAIM', 'EMPTY'))
@@ -201,16 +202,16 @@ class TestSecurity(unittest.TestCase):
 
         for param, result in tests:
             with self.subTest(f"no custom claim {param}"):
-                self.assertEqual(security.get_token_email(param), result)
+                self.assertEqual(helpers.get_token_email(param), result)
 
         os.environ['OIDC_EMAIL_CLAIM'] = 'TEST_CLAIM'
         for param, result in tests:
             with self.subTest(f"custom claim {param}"):
-                self.assertEqual(security.get_token_email(param), result)
+                self.assertEqual(helpers.get_token_email(param), result)
 
         with self.subTest("missing claim"):
             with self.assertRaises(DSSException) as ex:
-                security.get_token_email({})
+                helpers.get_token_email({})
             self.assertEqual(ex.exception.status, 401)
             self.assertEqual(ex.exception.message, 'Authorization token is missing email claims.')
 
