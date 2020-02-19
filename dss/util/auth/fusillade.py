@@ -1,10 +1,11 @@
 import logging
 import typing
 import requests
+
 from dss import Config
 from dss.error import DSSForbiddenException, DSSException
 from .authorize import Authorize
-from . import helpers
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +18,6 @@ class Fusillade(Authorize):
         """
         This method maps out security flow for Auth with Fusillade
         """
-        helpers.verify_jwt(requests.token_info)
         if 'group' in authz_methods:
             self.assert_required_parameters(kwargs, ['groups', 'token'])
             self.assert_authorized_group(kwargs['groups'], kwargs['token'])
