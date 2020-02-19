@@ -1,24 +1,17 @@
 #!/usr/bin/env python3.6
 import functools
-from flask import request
+
 
 from dss.util.auth import AuthHandler
 from dss.util.auth.helpers import verify_jwt
 
-# is it possible to create something here that can have different auth mechanisms?
-# can this information be handed to the system from the wrapper?
-# security handlers in functions are not that bad, it provides a single location to change
-# what is happening in the system.
 
-
-def security_assert():
+def security_assert(*args, **kwargs):
     def real_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # verify jwt being passed.
-            verify_jwt(request.token_info)
             authz_handler = AuthHandler()  # this function returns a class derived from Authorization
-            authz_handler.security_flow(request.token_info)
+            authz_handler.security_flow(kwargs)
             # perform auth mapping
             return func(*args, **kwargs)
 
