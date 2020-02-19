@@ -17,7 +17,7 @@ from dss.subscriptions_v2 import (SubscriptionData,
                                   count_subscriptions_for_owner)
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
     subscription = get_subscription(Replica[replica], owner, uuid)
@@ -28,7 +28,7 @@ def get(uuid: str, replica: str):
     return subscription, requests.codes.ok
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
     subscriptions = get_subscriptions_for_owner(Replica[replica], owner)
@@ -39,7 +39,7 @@ def find(replica: str):
     return {'subscriptions': subscriptions}, requests.codes.ok
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
     owner = security.get_token_email(request.token_info)
     if count_subscriptions_for_owner(Replica[replica], owner) > SUBSCRIPTION_LIMIT:
@@ -83,7 +83,7 @@ def put(json_request_body: dict, replica: str):
     return subscription_doc, requests.codes.created
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def delete(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
     subscription = get_subscription(Replica[replica], owner, uuid)

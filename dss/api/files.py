@@ -188,7 +188,7 @@ def _verify_checkout(
 
 
 @dss_handler
-@security.authorized_group_required(['hca'])
+@security.assert_security(['hca'])
 def put(uuid: str, json_request_body: dict, version: str):
     class CopyMode(Enum):
         NO_COPY = auto()

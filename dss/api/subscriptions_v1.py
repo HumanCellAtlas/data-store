@@ -19,7 +19,7 @@ from dss.config import SUBSCRIPTION_LIMIT
 logger = logging.getLogger(__name__)
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def get(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
 
@@ -45,7 +45,7 @@ def get(uuid: str, replica: str):
     return jsonify(source), requests.codes.okay
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def find(replica: str):
     owner = security.get_token_email(request.token_info)
     es_client = ElasticsearchClient.get()
@@ -66,7 +66,7 @@ def find(replica: str):
     return jsonify(full_response), requests.codes.okay
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
@@ -153,7 +153,7 @@ def put(json_request_body: dict, replica: str):
     return jsonify(dict(uuid=uuid)), requests.codes.created
 
 
-@security.authorized_group_required(['hca', 'public'])
+@security.assert_security(['hca', 'public'])
 def delete(uuid: str, replica: str):
     owner = security.get_token_email(request.token_info)
 
