@@ -10,6 +10,7 @@ from tests.infra import testmode
 from tests.infra.server import ThreadedLocalServer, MockFusilladeHandler
 import dss.error
 from dss.util import security
+from dss.util.auth import fusillade
 from dss import BucketConfig, Config, DeploymentStage
 
 
@@ -23,6 +24,7 @@ def tearDownModule():
 
 class TestMockFusilladeServer(unittest.TestCase):
     """Test that the mock Fusillade server in dss/tests/infra/server.py is functioning properly"""
+    fusillade = fusillade.Fusillade()
 
     def test_get_policy(self):
         actions = ["dss:PutBundle"]
@@ -30,12 +32,12 @@ class TestMockFusilladeServer(unittest.TestCase):
 
         # Ensure whitelisted principals are granted access
         for principal in MockFusilladeHandler._whitelist:
-            security.assert_authorized(principal, actions, resources)
+            self.fusillade.assert_authorized(principal, actions, resources)
 
         # Ensure non-whitelisted principals are denied access
         for principal in ['invalid-email@test-server.data.humancellatlas.org']:
             with self.assertRaises(dss.error.DSSForbiddenException):
-                security.assert_authorized(principal, actions, resources)
+                self.fusillade.assert_authorized(principal, actions, resources)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from jmespath.exceptions import JMESPathError
 from dss.config import Replica
 from dss.error import DSSException
 from dss.util import security
+from dss.util.auth import helpers
 from dss.config import SUBSCRIPTION_LIMIT
 from dss.subscriptions_v2 import (SubscriptionData,
                                   get_subscription,
@@ -19,7 +20,7 @@ from dss.subscriptions_v2 import (SubscriptionData,
 
 @security.assert_security(['hca', 'public'])
 def get(uuid: str, replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
     subscription = get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")
@@ -30,7 +31,7 @@ def get(uuid: str, replica: str):
 
 @security.assert_security(['hca', 'public'])
 def find(replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
     subscriptions = get_subscriptions_for_owner(Replica[replica], owner)
     for subscription in subscriptions:
         subscription['replica'] = Replica[replica].name
@@ -41,13 +42,13 @@ def find(replica: str):
 
 @security.assert_security(['hca', 'public'])
 def put(json_request_body: dict, replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
     if count_subscriptions_for_owner(Replica[replica], owner) > SUBSCRIPTION_LIMIT:
         raise DSSException(requests.codes.not_acceptable, "not_acceptable",
                            f"Users cannot exceed {SUBSCRIPTION_LIMIT} subscriptions!")
 
     subscription_doc = json_request_body.copy()
-    subscription_doc[SubscriptionData.OWNER] = security.get_token_email(request.token_info)
+    subscription_doc[SubscriptionData.OWNER] = helpers.get_token_email(request.token_info)
     subscription_uuid = str(uuid4())
     subscription_doc[SubscriptionData.UUID] = subscription_uuid
     subscription_doc[SubscriptionData.REPLICA] = Replica[replica].name
@@ -85,7 +86,7 @@ def put(json_request_body: dict, replica: str):
 
 @security.assert_security(['hca', 'public'])
 def delete(uuid: str, replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
     subscription = get_subscription(Replica[replica], owner, uuid)
     if subscription is None or owner != subscription[SubscriptionData.OWNER]:
         raise DSSException(404, "not_found", "Cannot find subscription!")

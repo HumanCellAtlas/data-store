@@ -16,6 +16,7 @@ from dss.storage.hcablobstore import BlobStore, compose_blob_key
 from dss.storage.identifiers import CollectionFQID, CollectionTombstoneID, COLLECTION_PREFIX
 from dss.util import security, hashabledict, UrlBuilder
 from dss.util.version import datetime_to_version_format
+from dss.util.auth import helpers
 from dss.storage.blobstore import idempotent_save
 from dss.collections import owner_lookup
 from cloud_blobstore import BlobNotFoundError
@@ -62,7 +63,7 @@ def list_collections(per_page: int, start_at: int = 0):
         {'collections': [{'uuid': uuid, 'version': version}, {'uuid': uuid, 'version': version}, ... , ...]}
     """
     # TODO: Replica is unused, so this does not use replica.  Appropriate?
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
 
     collections = []
     for collection in owner_lookup.get_collection_fqids_for_owner(owner):
@@ -89,7 +90,7 @@ def list_collections(per_page: int, start_at: int = 0):
 @dss_handler
 @security.assert_security(['hca'])
 def get(uuid: str, replica: str, version: str = None):
-    authenticated_user_email = security.get_token_email(request.token_info)
+    authenticated_user_email = helpers.get_token_email(request.token_info)
     collection_body = get_impl(uuid=uuid, replica=replica, version=version)
     if collection_body["owner"] != authenticated_user_email:
         raise DSSException(requests.codes.forbidden, "forbidden", f"Collection access denied")
@@ -99,7 +100,7 @@ def get(uuid: str, replica: str, version: str = None):
 @dss_handler
 @security.assert_security(['hca'])
 def put(json_request_body: dict, replica: str, uuid: str, version: str):
-    authenticated_user_email = security.get_token_email(request.token_info)
+    authenticated_user_email = helpers.get_token_email(request.token_info)
     collection_body = dict(json_request_body, owner=authenticated_user_email)
     uuid = uuid.lower()
     handle = Config.get_blobstore_handle(Replica[replica])
@@ -120,7 +121,7 @@ def put(json_request_body: dict, replica: str, uuid: str, version: str):
 @dss_handler
 @security.assert_security(['hca'])
 def patch(uuid: str, json_request_body: dict, replica: str, version: str):
-    authenticated_user_email = security.get_token_email(request.token_info)
+    authenticated_user_email = helpers.get_token_email(request.token_info)
 
     uuid = uuid.lower()
     owner = get_impl(uuid=uuid, replica=replica)["owner"]
@@ -159,7 +160,7 @@ def _dedpuplicate_contents(contents: List) -> List:
 @dss_handler
 @security.assert_security(['hca'])
 def delete(uuid: str, replica: str):
-    authenticated_user_email = security.get_token_email(request.token_info)
+    authenticated_user_email = helpers.get_token_email(request.token_info)
 
     uuid = uuid.lower()
     tombstone_key = CollectionTombstoneID(uuid, version=None).to_key()

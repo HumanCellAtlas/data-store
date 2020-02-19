@@ -13,7 +13,7 @@ import dss
 from dss import DSSException, DSSForbiddenException, Config
 from dss.config import Replica
 from dss.logging import configure_test_logging
-from dss.util import UrlBuilder, security, multipart_parallel_upload
+from dss.util import UrlBuilder, multipart_parallel_upload
 from dss.util.auth import helpers
 from dss.util.aws import ARN
 from tests import UNAUTHORIZED_GCP_CREDENTIALS, get_service_jwt
@@ -162,7 +162,7 @@ class TestSecurity(unittest.TestCase):
                 helpers.verify_jwt(jwt)
         for jwt in jwt_negative:
             with self.subTest("Negative: " + jwt):
-                self.assertRaises(dss.error.DSSException, security.verify_jwt, jwt)
+                self.assertRaises(dss.error.DSSException, helpers.verify_jwt, jwt)
 
     @mock.patch('dss.Config._OIDC_AUDIENCE', new="https://dev.data.humancellatlas.org/")
     @mock.patch('dss.Config._TRUSTED_GOOGLE_PROJECTS', new=['cool-project-188401.iam.gserviceaccount.com'])
@@ -178,10 +178,10 @@ class TestSecurity(unittest.TestCase):
         ]
         for jwt in jwts_positive:
             with self.subTest("Positive: " + jwt):
-                security.verify_jwt(jwt)
+                helpers.verify_jwt(jwt)
         for jwt in jwt_negative:
             with self.subTest("Negative: " + jwt):
-                self.assertRaises(dss.error.DSSException, security.verify_jwt, jwt)
+                self.assertRaises(dss.error.DSSException, helpers.verify_jwt, jwt)
 
     def test_negative_verify_jwt(self):
         jwts = [get_service_jwt(UNAUTHORIZED_GCP_CREDENTIALS)]

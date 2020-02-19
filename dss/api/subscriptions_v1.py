@@ -14,6 +14,7 @@ from dss.index.es import ElasticsearchClient
 from dss.index.es.manager import IndexManager
 from dss.notify import attachment
 from dss.util import security
+from dss.util.auth import helpers
 from dss.config import SUBSCRIPTION_LIMIT
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @security.assert_security(['hca', 'public'])
 def get(uuid: str, replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
     try:
@@ -47,7 +48,7 @@ def get(uuid: str, replica: str):
 
 @security.assert_security(['hca', 'public'])
 def find(replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
     es_client = ElasticsearchClient.get()
 
     search_obj = Search(using=es_client,
@@ -70,7 +71,7 @@ def find(replica: str):
 def put(json_request_body: dict, replica: str):
     uuid = str(uuid4())
     es_query = json_request_body['es_query']
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
 
     attachment.validate(json_request_body.get('attachments', {}))
 
@@ -155,7 +156,7 @@ def put(json_request_body: dict, replica: str):
 
 @security.assert_security(['hca', 'public'])
 def delete(uuid: str, replica: str):
-    owner = security.get_token_email(request.token_info)
+    owner = helpers.get_token_email(request.token_info)
 
     es_client = ElasticsearchClient.get()
 
