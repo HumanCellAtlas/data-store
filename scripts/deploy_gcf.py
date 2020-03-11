@@ -177,13 +177,13 @@ gcf_config = {
 try:
     deploy_op = gcf_conn.api_request("POST", f"/{gcf_ns}", data=gcf_config)
 except google.cloud.exceptions.Conflict:
-    deploy_op = gcf_conn.api_request("PUT", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config)
+    deploy_op = gcf_conn.api_request("PATCH", f"/{gcf_ns}/{args.gcf_name}", data=gcf_config)
 
 sys.stderr.write("Waiting for deployment...")
 sys.stderr.flush()
 for t in range(600):
     response = gcf_conn.api_request("GET", f"/{deploy_op['name']}")
-    if response.get("response", {}).get("status") == "READY":
+    if response.get("response", {}).get("status") == "ACTIVE":
         break
     if response.get("error"):
         sys.stderr.write(f'ERROR!  While deploying Google cloud function: {response["metadata"]["target"]}\n'
@@ -202,4 +202,4 @@ sys.stderr.write("done\n")
 
 res = gcf_conn.api_request("GET", f"/{gcf_ns}/{args.gcf_name}")
 print(res)
-assert res["status"] == "READY"
+assert res["status"] == "ACTIVE"
