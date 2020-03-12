@@ -27,6 +27,7 @@ class GCPClient(ClientWithProject):
              "https://www.googleapis.com/auth/cloudruntimeconfig"]
 
 class GoogleCloudFunctionsConnection(JSONConnection):
+    #  see https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions
     API_BASE_URL = "https://cloudfunctions.googleapis.com"
     API_VERSION = "v1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
