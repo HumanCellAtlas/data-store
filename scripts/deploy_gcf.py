@@ -28,7 +28,7 @@ class GCPClient(ClientWithProject):
 
 class GoogleCloudFunctionsConnection(JSONConnection):
     API_BASE_URL = "https://cloudfunctions.googleapis.com"
-    API_VERSION = "v1beta2"
+    API_VERSION = "v1"
     API_URL_TEMPLATE = "{api_base_url}/{api_version}{path}"
 
 class GoogleRuntimeConfigConnection(JSONConnection):
