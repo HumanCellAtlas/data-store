@@ -38,7 +38,13 @@ class MockStorageHandler:
                    'bundles/00000000-1113-7197-967c-d6a33233f65e.2018-09-13T131642.918470Z',
                    'bundles/00000000-1113-7670-9dad-92c9fb6534bb.2019-02-26T033443.407780Z',
                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad783.2018-10-08T201847.591231Z',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201847.591231Z']
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201835.591231Z.dead',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201830.591231Z.dead',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201820.591231Z.dead',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201835.591231Z.dead',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201830.591231Z',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201820.591231Z.dead'
+                   ]
 
     dead_bundles = ['bundles/00000000-1112-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
                     'bundles/00000000-1112-4858-bf17-513dc2d05863.2019-05-23T220340.829000Z',
@@ -64,7 +70,14 @@ class MockStorageHandler:
                     'bundles/00000000-1113-5719-a070-1fcb25a57519.2018-10-18T203641.653105Z.dead',
                     'bundles/00000000-1113-6452-94d9-293fcb97ba32.2019-05-10T110312.514000Z',
                     'bundles/00000000-1113-6452-94d9-293fcb97ba32.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201835.591231Z.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201830.591231Z.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201820.591231Z.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201835.591231Z.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201820.591231Z.dead'
                     ]
+
+    dead_bundles_without_suffix = map(lambda x: x[:-5] if x.endswith('.dead') else x, dead_bundles)
 
     test_per_page = [{"size": 10,
                       "last_good_bundle": {"uuid": "00000000-1113-5145-9560-430930445071",

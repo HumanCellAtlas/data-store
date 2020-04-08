@@ -92,6 +92,7 @@ class TestStorageBundles(unittest.TestCase):
         resp = enumerate_available_bundles(replica='aws')
         for x in resp['bundles']:
             self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
+            self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles_without_suffix)
 
     @mock.patch("dss.Config.get_blobstore_handle")
     def test_tombstone_pages(self, mock_list_v2):
@@ -104,12 +105,14 @@ class TestStorageBundles(unittest.TestCase):
             page_one = resp['bundles']
             for x in resp['bundles']:
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
+                self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles_without_suffix)
             self.assertDictEqual(last_good_bundle, resp['bundles'][-1])
             search_after = resp['search_after']
             resp = enumerate_available_bundles(replica='aws', per_page=test_size,
                                                search_after=search_after)
             for x in resp['bundles']:
                 self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles)
+                self.assertNotIn('.'.join([x['uuid'], x['version']]), MockStorageHandler.dead_bundles_without_suffix)
                 self.assertNotIn(x, page_one)
     # TODO add test to enumerate list and ensure all bundles that should be present are there.
     # TODO: Add test for dss.storage.bundles.get_bundle_manifest
