@@ -169,7 +169,7 @@ class Living():
         self.bundle_info = dict(contains_unversioned_tombstone=False, uuid=None, fqids=OrderedDict())
         if fqid:
             self.bundle_info['uuid'] = fqid.uuid
-            self.bundle_info['fqids'][fqid] = False
+            self.bundle_info['fqids'][fqid] = isinstance(fqid, BundleTombstoneID)
 
     def _living_fqids_in_bundle_info(self):
         if not self.bundle_info['contains_unversioned_tombstone']:
