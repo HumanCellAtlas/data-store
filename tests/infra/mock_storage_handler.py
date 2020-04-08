@@ -41,9 +41,9 @@ class MockStorageHandler:
                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201835.591231Z.dead',
                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201830.591231Z.dead',
                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201820.591231Z.dead',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad785.2018-10-08T201835.591231Z.dead',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad785.2018-10-08T201830.591231Z',
-                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad785.2018-10-08T201820.591231Z.dead'
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201835.591231Z.dead',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201830.591231Z',
+                   'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201820.591231Z.dead'
                    ]
 
     dead_bundles = ['bundles/00000000-1112-4858-bf17-513dc2d05863.2019-02-26T033907.789762Z',
@@ -73,8 +73,8 @@ class MockStorageHandler:
                     'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201835.591231Z.dead',
                     'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201830.591231Z.dead',
                     'bundles/00000000-1113-7ee4-aefd-6eb2c8cad786.2018-10-08T201820.591231Z.dead',
-                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad785.2018-10-08T201835.591231Z.dead',
-                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad785.2018-10-08T201820.591231Z.dead'
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201835.591231Z.dead',
+                    'bundles/00000000-1113-7ee4-aefd-6eb2c8cad787.2018-10-08T201820.591231Z.dead'
                     ]
 
     dead_bundles_without_suffix = map(lambda x: x[:-5] if x.endswith('.dead') else x, dead_bundles)
