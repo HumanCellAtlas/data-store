@@ -197,6 +197,7 @@ paths:
         * A new search index must be built for each schema version
 
         * A lot of metadata is duplicated between documents
+      operationID: dss.api.search.post
       summary: >
         Find bundles by searching their metadata with an Elasticsearch query
       parameters:
@@ -274,6 +275,7 @@ paths:
             $ref: '#/definitions/Error'
   /files/{uuid}:
     head:
+      operationId: dss.api.files.head
       summary: Retrieve a file's metadata given an UUID and optionally a version.
       description: >
         Given a file UUID, return the metadata for the latest version of that file.  If the version is provided, that
@@ -339,6 +341,7 @@ paths:
         504:
           $ref: '#/responses/GatewayTimeout'
     get:
+      operationId: dss.api.files.get
       summary: Retrieve a file given a UUID and optionally a version.
       description: >
         Given a file UUID, return the latest version of that file.  If the version is provided, that version of the file
@@ -483,6 +486,7 @@ paths:
     put:
       security:
         - dcpAuth: []
+      operationId: dss.api.files.put
       summary: Create a new version of a file
       description: >
         Create a new version of a file with a given UUID. The contents of the file are provided by the client by
@@ -698,6 +702,7 @@ paths:
     put:
       security:
         - dcpAuth: []
+      operationId: dss.api.subscriptions.put
       summary: Create an event subscription.
       description: >
         Register an HTTP endpoint that is to be notified when a given event occurs.
@@ -927,6 +932,7 @@ paths:
     get:
       security:
         - dcpAuth: []
+      operationId: dss.api.subscriptions.get
       summary: Retrieve an event subscription given a UUID.
       description: >
         Given a subscription UUID, return the associated subscription.
@@ -982,6 +988,7 @@ paths:
     delete:
       security:
         - dcpAuth: []
+      operationId: dss.api.subscriptions.delete
       summary: Delete an event subscription.
       description: >
         Delete a registered event subscription. The associated query will no longer trigger a callback
@@ -1134,6 +1141,7 @@ paths:
     put:
       security:
         - dcpAuth: []
+      operationId: dss.api.collections.put
       summary: Create a collection.
       description: >
         Create a new collection.
@@ -1214,6 +1222,7 @@ paths:
     get:
       security:
         - dcpAuth: []
+      operationId: dss.api.collections.get
       summary: Retrieve a collection given a UUID.
       description: Given a collection UUID, return the associated collection object.
       parameters:
@@ -1267,6 +1276,7 @@ paths:
     patch:
       security:
         - dcpAuth: []
+      operationId: dss.api.collections.patch
       summary: Update a collection.
       description: >
         Add or remove items from a collection. A specific version of the collection to update must be provided, and a
@@ -1430,6 +1440,7 @@ paths:
     delete:
       security:
         - dcpAuth: []
+      operationId: dss.api.collections.delete
       summary: Delete a collection.
       description: >
         Delete a collection.
@@ -1553,6 +1564,7 @@ paths:
             $ref: '#/definitions/Error'
   /bundles/{uuid}:
     get:
+      operationId: dss.api.bundles.get
       summary: Retrieve a bundle given a UUID and optionally a version.
       description: >
         Given a bundle UUID, return the latest version of that bundle.  If the version is provided, that version of the
@@ -1730,6 +1742,7 @@ paths:
     put:
       security:
         - dcpAuth: []
+      operationId: dss.api.bundles.put
       summary: Create a bundle
       description: >
         Create a new version of a bundle with a given UUID.  The list of file UUID and versions to be included must be
@@ -1877,6 +1890,7 @@ paths:
     patch:
       security:
         - dcpAuth: []
+      operationId: dss.api.bundles.patch
       summary: Update a bundle.
       description: >
         Add or remove files from a bundle. A specific version of the bundle to update must be provided, and a
@@ -2025,6 +2039,7 @@ paths:
     delete:
       security:
         - dcpAuth: []
+      operationId: dss.api.bundles.delete
       summary: Delete a bundle or a specific bundle version
       description: >
         Delete the bundle with the given UUID. This deletion is applied across replicas.
@@ -2351,6 +2366,7 @@ paths:
                   - code
   /events/{uuid}:
     get:
+      operationId: dss.api.events.get
       summary: Retrieve a bundle metadata document given a UUID and version.
       description: >
         Given a bundle UUID and version, return the bundle metadata document.
