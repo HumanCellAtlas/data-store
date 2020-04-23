@@ -1,13 +1,12 @@
 import deepdiff
-import sys
-import pathlib
 import pprint
 import copy
 from total_size import total_size
-from functools import reduce
+
 from dss.index.es import ElasticsearchClient
 from dss import Config, Replica, ESIndexType, dss_handler, DSSException
 from dss import ESDocType
+
 
 def _format_request_body(page: dict, es_query: dict, replica: Replica, output_format: str) -> dict:
     result_list = []  # type: typing.List[dict]
@@ -26,12 +25,6 @@ def _format_request_body(page: dict, es_query: dict, replica: Replica, output_fo
         'total_hits': page['hits']['total']
     }
 
-def _deep_get(src_dict: dict, keys: list):
-    """Performs deep retrieval of value from dictionary object"""
-    return reduce(lambda d, key: d.get(key) if d else None, keys, src_dict)
-
-
-data_dir = pathlib.Path.joinpath(pathlib.Path(__file__,), '../data')
 
 es_client = ElasticsearchClient.get()
 
@@ -69,17 +62,20 @@ def search(search_after: str = None):
 search_after = None
 total_hits = 0
 current_page = 0
-max_pages = 300
+max_pages = 30
 processing_lookup = dict()
 largest_link_json = None
 largest_link_json_size = 0
 largest_bundle = None
+histogram = dict()# Key is the len of links in a links.json file, value is count.
+
 def print_stats():
     print(f'total_hits: {total_hits}')
     print(len(processing_lookup))
     pprint.pprint(largest_link_json)
     print(largest_link_json_size)
     print(largest_bundle)
+    print(histogram)
     #pprint.pprint(processing_lookup)
 
 while True:
@@ -94,12 +90,21 @@ while True:
     current_page += 1
     fmt_page = _format_request_body(page,es_query,replica,output_format)
     for bundles in fmt_page['results']:
+
         # sizing stuff
         size = total_size(bundles['metadata']['files']['links_json'])
         if largest_link_json_size < size:
             largest_link_json_size = size
             largest_link_json = bundles['metadata']['files']['links_json']
             largest_bundle_fqid = bundles
+
+        #histogram stuff
+        number_of_links = len(bundles['metadata']['files']['links_json'][0]['links'])
+        if histogram.get(number_of_links) is None:
+            histogram[number_of_links] = 1
+        else:
+            histogram[number_of_links] += 1
+
         # comparing links_json obj
         for link in bundles['metadata']['files']['links_json'][0]['links']:
             total_hits += 1
