@@ -32,6 +32,8 @@ replica = Replica.aws
 es_query = { "query": { "bool": { "must": [ { "exists": { "field": "files.links_json"}} ] } } }
 output_format = 'raw'
 per_page = 1000
+search_after = None
+
 # Do not return the raw indexed data unless it is requested
 if output_format != 'raw':
     es_query['_source'] = False
@@ -59,23 +61,26 @@ def search(search_after: str = None):
                                 )
     return page
 
-search_after = None
 total_hits = 0
 current_page = 0
-max_pages = 30
+max_pages = 300
 processing_lookup = dict()
 largest_link_json = None
 largest_link_json_size = 0
 largest_bundle = None
-histogram = dict()# Key is the len of links in a links.json file, value is count.
+
+histogram = dict() # Key is the len of links in a links.json file, value is count.
 
 def print_stats():
-    print(f'total_hits: {total_hits}')
-    print(len(processing_lookup))
-    pprint.pprint(largest_link_json)
-    print(largest_link_json_size)
-    print(largest_bundle)
-    print(histogram)
+    print(f'total processing hits: {total_hits}')
+    print(f"total number of unique processing ids: {len(processing_lookup)}")
+    # pprint.pprint(largest_link_json)
+    print(f"size in bytes of largest links_json: {largest_link_json_size}")
+    # print(largest_bundle)
+    for k,v in histogram.items():
+        histogram[k]['unique_process_ids'] = len(v['unique_process_ids'])
+    pprint.pprint(histogram)
+
     #pprint.pprint(processing_lookup)
 
 while True:
@@ -101,14 +106,18 @@ while True:
         #histogram stuff
         number_of_links = len(bundles['metadata']['files']['links_json'][0]['links'])
         if histogram.get(number_of_links) is None:
-            histogram[number_of_links] = 1
+            histogram[number_of_links] = {'number_of_bundles': 1, 'unique_process_ids': set()}
         else:
-            histogram[number_of_links] += 1
+            histogram[number_of_links]['number_of_bundles'] += 1
 
         # comparing links_json obj
         for link in bundles['metadata']['files']['links_json'][0]['links']:
+
             total_hits += 1
             processes_id = link['process']
+            # add the processessID here to the unique_set
+            histogram[number_of_links]['unique_process_ids'].add(processes_id)
+
             if processes_id not in processing_lookup:
                 processing_lookup[processes_id] = copy.deepcopy(link)
             else:
