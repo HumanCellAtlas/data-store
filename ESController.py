@@ -106,9 +106,9 @@ while True:
         #histogram stuff
         number_of_links = len(bundles['metadata']['files']['links_json'][0]['links'])
         if histogram.get(number_of_links) is None:
-            histogram[number_of_links] = {'number_of_bundles': 1, 'unique_process_ids': set()}
+            histogram[number_of_links] = {'number_of_links_json': 1, 'unique_process_ids': set()}
         else:
-            histogram[number_of_links]['number_of_bundles'] += 1
+            histogram[number_of_links]['number_of_links_json'] += 1
 
         # comparing links_json obj
         for link in bundles['metadata']['files']['links_json'][0]['links']:
