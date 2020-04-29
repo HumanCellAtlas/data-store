@@ -18,6 +18,11 @@ DSS_ZONE_NAME="${DCP_DOMAIN}."
 DSS_ES_INSTANCE_TYPE="m4.2xlarge.elasticsearch"
 DSS_ES_INSTANCE_COUNT="3"
 DSS_ES_VOLUME_SIZE="512"  # Maximum volume size for m4.large.elasticsearch
+# human-cell-atlas-travis-test has been removed to not allow CI systems to push data to the DSS
+DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY=(
+    broad-dsde-mint-{dev,test,staging}.iam.gserviceaccount.com
+)
+DSS_AUTHORIZED_DOMAINS=${DSS_AUTHORIZED_GOOGLE_PROJECT_DOMAIN_ARRAY[*]}
 DSS_AUTHORIZED_DOMAINS="hca-dcp-production.iam.gserviceaccount.com hca-dcp-pipelines-prod.iam.gserviceaccount.com ${DSS_AUTHORIZED_DOMAINS}"
 DSS_CHECKOUT_BUCKET_OBJECT_VIEWERS="serviceAccount:619310558212-compute@developer.gserviceaccount.com,serviceAccount:caas-account@broad-dsde-mint-dev.iam.gserviceaccount.com,serviceAccount:caas-prod-account-for-dev@broad-dsde-mint-dev.iam.gserviceaccount.com,group:GROUP_All_Users@firecloud.org,serviceAccount:cromwell-metadata-uploader@hca-dcp-pipelines-prod.iam.gserviceaccount.com,serviceAccount:ingest-exporter-prod@hca-dcp-production.iam.gserviceaccount.com"
 DSS_TERRAFORM_BACKEND_BUCKET_TEMPLATE="org-humancellatlas-dss-{account_id}-${DSS_DEPLOYMENT_STAGE}-terraform"
