@@ -92,8 +92,7 @@ correct environment (see the [Configuration](#configuration) section below). The
 is also available in the environment variable `$DSS_HOME`.
 
 ### Install Dependencies
-
-The DSS requires Python 3.6 to run.
+The DSS requires Python 3.7 to run.
 
 Clone the repo and install dependencies:
 ```
