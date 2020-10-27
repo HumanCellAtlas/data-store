@@ -21,7 +21,7 @@ connexion==1.5.3
 coverage==4.5.4
 crc32c==1.7
 crcmod==1.7
-cryptography==2.7
+cryptography==3.2
 dcplib==3.7.0
 docutils==0.15.2
 domovoi==2.0.2
