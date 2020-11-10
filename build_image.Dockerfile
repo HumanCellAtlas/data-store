@@ -1,11 +1,11 @@
 # This is the build image for the DSS, intended for use with the allspark GitLab server
 # It may be built and uploaded with the commands:
 #   `docker login
-#   `docker build -f allspark.Dockerfile -t {docker_username}/{tag_key}:{tag_value} .`
+#   `docker build -f build_image.Dockerfile -t {docker_username}/{tag_key}:{tag_value} .`
 #   `docker push {docker_username}/{tag_key}:{tag_value}`
 # For example,
 #   `docker login
-#   `docker build -f allspark.Dockerfile -t humancellatlas/dss-build-box .`
+#   `docker build -f build_image.Dockerfile -t humancellatlas/dss-build-box .`
 #   `docker push humancellatlas/dss-build-box`
 #
 # Now reference the image in .gitlab-ci.yml with the line:
