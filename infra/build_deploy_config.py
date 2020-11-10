@@ -25,7 +25,8 @@ variable "{name}" {{
 }}
 """
 
-terraform_backend_template = """# Auto-generated during infra build process.
+terraform_backend_template = """
+# Auto-generated during infra build process.
 # Please edit infra/build_deploy_config.py directly.
 terraform {{
   backend "s3" {{
@@ -35,18 +36,19 @@ terraform {{
     {profile_setting}
   }}
 }}
-"""
+""".strip()
 
-terraform_providers_template = """# Auto-generated during infra build process.
+terraform_providers = f"""
+# Auto-generated during infra build process.
 # Please edit infra/build_deploy_config.py directly.
 provider aws {{
-  region = "{aws_region}"
+  region = "{os.environ['AWS_DEFAULT_REGION']}"
 }}
 
 provider google {{
-  project = "{gcp_project_id}"
+  project = "{GCP_PROJECT_ID}"
 }}
-"""
+""".strip()
 
 env_vars_to_infra = [
     "ACM_CERTIFICATE_IDENTIFIER",
@@ -110,7 +112,4 @@ with open(os.path.join(infra_root, args.component, "variables.tf"), "w") as fp:
         fp.write(terraform_variable_template.format(name=key, val=val))
 
 with open(os.path.join(infra_root, args.component, "providers.tf"), "w") as fp:
-    fp.write(terraform_providers_template.format(
-        aws_region=os.environ['AWS_DEFAULT_REGION'],
-        gcp_project_id=GCP_PROJECT_ID,
-    ))
+    fp.write(terraform_providers)
