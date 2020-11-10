@@ -1,14 +1,20 @@
 import os
+import re
 import json
 import time
 import typing
 import datetime
+import logging as logger
+
+from dss.storage.identifiers import DSS_BUNDLE_TOMBSTONE_REGEX as dead_template
 
 import nestedcontext
 import requests
 from cloud_blobstore import BlobNotFoundError, BlobStoreTimeoutError
 from flask import jsonify, redirect, request, make_response
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dss.index.es import ElasticsearchClient
+from dss.index.es.backend import ElasticsearchIndexBackend as es_back
 
 from dss import DSSException, dss_handler, DSSForbiddenException
 from dss.api.search import PerPageBounds
@@ -32,7 +38,61 @@ PUT_TIME_ALLOWANCE_SECONDS = 10
 """This is the minimum amount of time remaining on the lambda for us to retry on a PUT /bundles request."""
 
 ADMIN_USER_EMAILS = set(os.environ['ADMIN_USER_EMAILS'].split(','))
+@dss_handler
+def restore(replica: str, uuid: str, version: str, confrim_code: str):
+    es_client = ElasticsearchClient.get()
 
+    # checks for valid bucket
+    if version is not None:
+        key = f"bundles/{uuid}.{version}"
+    else:
+        key = f"bundles/{uuid}"
+    bucket = Replica[replica].checkout_bucket
+    try:
+        handle = Config.get_blobstore_handle(replica)
+        handle.get(bucket=bucket, key=key)
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+
+    if version is not None:
+        key = f"bundles/{uuid}.{version}.dead"
+    else:
+        key = f"bundles/{uuid}.dead"
+
+    try:
+        handle = Config.get_blobstore_handle(replica)
+        handle.get(bucket=bucket, key=key)
+    except BlobNotFoundError:
+        raise DSSException(404, "not_found", "Cannot find bundle!")
+
+    # Searches for any bundles with given version and uuid
+    if version is not None:
+        # matches query and deletes Specific bundle with given uuid
+        restore_key = f"{uuid}.{version}"
+        es_client.delete_by_query(
+            index="_all",
+            body={"query": {"terms": {"_id": ["{}.{}.dead".format(uuid, version)]}}},
+        )
+
+        logger.debug(f"removed dead bundle {uuid}.{version}.dead from es")
+        es_client.update_by_query(
+            index="all",
+            body={"query": {"terms": {"_id": ["{}.{}".format(uuid, version)]}}},
+        )
+        logger.debug("Restored bundle {uuid}.{version}")
+        es_back.index_bundle(restore_key)
+    else:
+        # deindex dead bundle from es
+        es_client.delete_by_query(
+            index="_all", body={"query": {"terms": {"_id": ["{}.dead".format(uuid)]}}}
+        )
+        logger.debug(f"removed dead bundle {uuid}.dead from es")
+        es_client.update_by_query(
+            index="_all", body={"query": {"terms": {"_id": ["{}".format(uuid)]}}}
+        )
+        logger.debug("Resored bundles with {uuid}")
+        es_back.index_bundle(uuid)
+    return requests.code.ok
 
 @dss_handler
 def get(
