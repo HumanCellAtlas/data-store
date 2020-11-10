@@ -30,7 +30,7 @@ from dcplib.aws.sqs import SQSMessenger, get_queue_url
 from dss.events.handlers.notify_v2 import notify_or_queue
 from dss.util.version import datetime_to_version_format
 from dss.subscriptions_v2 import (delete_subscription, get_subscriptions_for_replica, get_subscriptions_for_owner,
-                                  SubscriptionData)
+                                  SubscriptionData, SubscriptionStats)
 daemon_app = importlib.import_module('daemons.dss-notify-v2.app')
 
 
@@ -185,38 +185,45 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         with self.subTest("Should attempt to notify immediately"):
             with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
                 with mock.patch.object(SQSMessenger, "send") as mock_send:
-                    md = dict(**metadata_document, **dict(event_type="CREATE"))
-                    key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.datetime.now())}"
-                    notify_or_queue(replica, subscription, md, key)
-                    mock_notify.assert_called()
-                    mock_send.assert_not_called()
-                    keys = [a[0][2] for a in mock_notify.call_args_list]
-                    self.assertIn(key, keys)
+                    with mock.patch("dss.events.handlers.notify_v2.update_subscription_stats") as mock_update:
+                        mock_update.return_value = None
+                        md = dict(**metadata_document, **dict(event_type="CREATE"))
+                        key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.datetime.now())}"
+                        notify_or_queue(replica, subscription, md, key)
+                        mock_notify.assert_called()
+                        mock_update.assert_called()
+                        mock_send.assert_not_called()
+                        keys = [a[0][2] for a in mock_notify.call_args_list]
+                        self.assertIn(key, keys)
 
         with self.subTest("Should queue when notify fails"):
             with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
                 mock_notify.return_value = False
                 with mock.patch.object(SQSMessenger, "send", mock_send):
-                    md = dict(**metadata_document, **dict(event_type="CREATE"))
-                    key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.datetime.now())}"
-                    notify_or_queue(Replica.aws, subscription, md, key)
-                    mock_notify.assert_called()
-                    mock_send.assert_called()
-                    keys = [json.loads(a[0][0])['key'] for a in mock_send.call_args_list]
-                    self.assertIn(key, keys)
+                    with mock.patch("dss.events.handlers.notify_v2.update_subscription_stats") as mock_update:
+                        mock_update.return_value = None
+                        md = dict(**metadata_document, **dict(event_type="CREATE"))
+                        key = f"bundles/{uuid4()}.{datetime_to_version_format(datetime.datetime.now())}"
+                        notify_or_queue(Replica.aws, subscription, md, key)
+                        mock_notify.assert_called()
+                        mock_send.assert_called()
+                        keys = [json.loads(a[0][0])['key'] for a in mock_send.call_args_list]
+                        self.assertIn(key, keys)
 
         with self.subTest("notify_or_queue should attempt to notify immediately for versioned tombstone"):
             with mock.patch("dss.events.handlers.notify_v2.notify") as mock_notify:
                 with mock.patch("dss.events.handlers.notify_v2._list_prefix") as mock_list_prefix:
-                    md = dict(**metadata_document, **dict(event_type="TOMBSTONE"))
-                    bundle_uuid = str(uuid4())
-                    bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
-                    key = f"bundles/{bundle_uuid}.{bundle_version}.dead"
-                    mock_list_prefix.return_value = [key]
-                    notify_or_queue(Replica.aws, subscription, md, key)
-                    mock_notify.assert_called_with(subscription, md, key)
-                    keys = [a[0][2] for a in mock_notify.call_args_list]
-                    self.assertIn(key, keys)
+                    with mock.patch("dss.events.handlers.notify_v2.update_subscription_stats") as mock_update:
+                        mock_update.return_value = None
+                        md = dict(**metadata_document, **dict(event_type="TOMBSTONE"))
+                        bundle_uuid = str(uuid4())
+                        bundle_version = datetime_to_version_format(datetime.datetime.utcnow())
+                        key = f"bundles/{bundle_uuid}.{bundle_version}.dead"
+                        mock_list_prefix.return_value = [key]
+                        notify_or_queue(Replica.aws, subscription, md, key)
+                        mock_notify.assert_called_with(subscription, md, key)
+                        keys = [a[0][2] for a in mock_notify.call_args_list]
+                        self.assertIn(key, keys)
 
         with self.subTest("notify_or_queue should queue notifications for unversioned tombstone"):
             md = dict(**metadata_document, **dict(event_type="TOMBSTONE"))
@@ -316,12 +323,14 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
         # upload test bundle from test fixtures bucket
         bundle_uuid, bundle_version = self._upload_bundle(replica)
-
         notification = self._get_notification_from_s3_object(bucket, key)
         self.assertEquals(notification['subscription_id'], subscription['uuid'])
         # There's a chance an unrelated bundle will trigger our subscription
         # self.assertEquals(notification['match']['bundle_uuid'], bundle_uuid)
         # self.assertEquals(notification['match']['bundle_version'], bundle_version)
+        get_sub = self._get_subscription(uuid=subscription['uuid'], replica=replica)
+        self.assertIn('stats', get_sub)
+        self.assertGreater(int(get_sub['stats'][SubscriptionStats.SUCCESSFUL]), 0)
 
     @eventually(120, 1, {botocore.exceptions.ClientError})
     def _get_notification_from_s3_object(self, bucket, key):
@@ -414,7 +423,6 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
 
     def _test_subscription_api(self, replica: Replica):
         subscription_doc = {
-            'callback_url': "https://example.com",
             'method': "POST",
             'encoding': "application/json",
             'form_fields': {'foo': "bar"},
@@ -434,29 +442,34 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
         }
         with self.subTest(f"{replica}, PUT should succceed for missing JMESPath"):
             doc = deepcopy(subscription_doc)
+            doc['callback_url']= "https://test-subscription-api-succeed.humancellatlas.com"
             subscription = self._put_subscription(doc, replica)
 
         with self.subTest(f"{replica}, Should not be able to PUT with invalid JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['jmespath_query'] = "this is not valid jmespath"
+            doc['callback_url'] = "https://test-subscription-api-invalid-jmespath.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_jmespath", resp['code'])
 
         with self.subTest(f"{replica}, PUT should NOT succeed for attachment name starting with '_'"):
             doc = deepcopy(subscription_doc)
             doc['attachments']['_illegal_attachment_name'] = doc['attachments']['my_attachment_1']  # type: ignore
+            doc['callback_url'] = "https://test-subscription-api-not-with-underscore.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_attachment_name", resp['code'])
 
         with self.subTest(f"{replica}, PUT should NOT succeed for invalid attachment JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['attachments']['my_attachment_1']['expression'] = "this is not valid jmespath"  # type: ignore
+            doc['callback_url']= "https://test-subscription-api-not-with-invalid-jmespath.humancellatlas.com"
             resp = self._put_subscription(doc, replica, codes=requests.codes.bad_request)
             self.assertEquals("invalid_attachment_expression", resp['code'])
 
         with self.subTest(f"{replica}, PUT should succeed for valid JMESPath"):
             doc = deepcopy(subscription_doc)
             doc['jmespath_query'] = "foo"
+            doc['callback_url']= "https://test-subscription-api-succeed-with-valid-jmespath.humancellatlas.com"
             self._put_subscription(doc, replica)
 
         with self.subTest(f"{replica}, GET should succeed"):
@@ -613,6 +626,7 @@ class TestNotifyV2(unittest.TestCase, DSSAssertMixin, DSSUploadMixin):
     @mock.patch("daemons.dss-notify-v2.app.notify")
     @mock.patch("daemons.dss-notify-v2.app.get_bundle_metadata_document")
     @mock.patch("daemons.dss-notify-v2.app.get_deleted_bundle_metadata_document")
+    @mock.patch("daemons.dss-notify-v2.app.update_subscription_stats")
     def test_launch_from_notification_queue(self, *args, **kwargs):
         for replica in Replica:
             for event_type in ["CREATE", "TOMBSTONE", "DELETE"]:

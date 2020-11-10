@@ -16,6 +16,8 @@ import botocore
 import flashflood
 from cloud_blobstore import BlobStore
 
+from dss.subscriptions_v2 import SubscriptionStats
+
 pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
 sys.path.insert(0, pkg_root)  # noqa
 
@@ -237,6 +239,11 @@ class BaseSmokeTest(unittest.TestCase):
         list_of_subscriptions = get_response['subscriptions']
         list_of_subscription_uuids = [x['uuid'] for x in list_of_subscriptions if x['uuid']]
         self.assertIn(requested_subscription, list_of_subscription_uuids)
+
+    def _test_subscription_stats(self, replica: str, uuid: str):
+        subscription = self.get_subscription(replica, 'jmespath', uuid)
+        self.assertGreater(int(subscription["stats"][SubscriptionStats.SUCCESSFUL]), 0)
+        self.assertGreater(int(subscription["stats"][SubscriptionStats.ATTEMPTS]), 0)
 
     @staticmethod
     def _download_bundle(replica_name: str, bundle_uuid: str, workdir: str, venv_bin: str):

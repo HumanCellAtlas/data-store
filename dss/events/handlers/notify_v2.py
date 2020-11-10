@@ -1,5 +1,6 @@
 import os
 import re
+import typing
 import json
 import requests
 import urllib3
@@ -14,7 +15,7 @@ from jmespath.exceptions import JMESPathError
 from dcplib.aws.sqs import SQSMessenger, get_queue_url
 
 from dss import Config, Replica, datetime_to_version_format
-from dss.subscriptions_v2 import SubscriptionData
+from dss.subscriptions_v2 import SubscriptionData, SubscriptionStats, update_subscription_stats
 from dss.storage.identifiers import UUID_PATTERN, VERSION_PATTERN, TOMBSTONE_SUFFIX, DSS_BUNDLE_KEY_REGEX
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,15 @@ def notify_or_queue(replica: Replica, subscription: dict, metadata_document: dic
             for key in bundles - tombstones:
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=0)
         else:
-            if not notify(subscription, metadata_document, key):
+            try:
+                assert subscription.get('body') is not None
+            except AssertionError:
+                logger.warning(f'unable to find body in {subscription.get("uuid")}')
+            notify_status = notify(subscription, metadata_document, key)
+            if notify_status:
+                update_subscription_stats(subscription, SubscriptionStats.SUCCESSFUL)
+            else:
+                update_subscription_stats(subscription, SubscriptionStats.FAILED)
                 sqsm.send(_format_sqs_message(replica, subscription, event_type, key), delay_seconds=15 * 60)
 
 
@@ -173,6 +182,7 @@ def notify(subscription: dict, metadata_document: dict, key: str) -> bool:
                        str(payload), response.status_code, str(subscription))
         return False
 
+
 def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, key: str):
     return json.dumps({
         SubscriptionData.REPLICA: replica.name,
@@ -181,6 +191,7 @@ def _format_sqs_message(replica: Replica, subscription: dict, event_type: str, k
         'event_type': event_type,
         'key': key
     })
+
 
 @lru_cache()
 def _list_prefix(replica: Replica, prefix: str):

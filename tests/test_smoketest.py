@@ -141,6 +141,8 @@ class Smoketest(BaseSmokeTest):
                         break
                 else:
                     self.fail("Timed out waiting for notification to arrive")
+            with self.subTest(f"{starting_replica.name}: Check subscription stats for subscription {subscription_id}"):
+                self._test_subscription_stats(replica=replica, uuid=subscription_id)
 
         for replica in self.replicas:
             with self.subTest(f"{starting_replica.name}: Get event for bundle",
