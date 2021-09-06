@@ -39,7 +39,7 @@ idna==2.8
 inflection==0.3.1
 iso8601==0.1.12
 itsdangerous==1.1.0
-Jinja2==2.10.1
+Jinja2==2.11.3
 jmespath==0.9.4
 jsonpickle==1.2
 jsonpointer==2.0
@@ -57,7 +57,7 @@ pycparser==2.19
 PyJWT==1.7.1
 python-dateutil==2.8.0
 pytz==2019.2
-PyYAML==5.1
+PyYAML==5.2
 requests==2.22.0
 requests-aws4auth==0.9
 requests-http-signature==0.1.0
