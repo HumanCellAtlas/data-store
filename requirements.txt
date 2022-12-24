@@ -70,3 +70,4 @@ uritemplate==3.0.0
 urllib3==1.25.5
 Werkzeug==0.16.0
 wrapt==1.11.2
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
