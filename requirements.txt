@@ -58,7 +58,7 @@ PyJWT==1.7.1
 python-dateutil==2.8.0
 pytz==2019.2
 PyYAML==5.1
-requests==2.22.0
+requests==2.31.0
 requests-aws4auth==0.9
 requests-http-signature==0.1.0
 rsa==4.0
