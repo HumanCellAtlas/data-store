@@ -1,1 +1,2 @@
 boto3==1.9.253
+urllib3>=1.26.17 # not directly required, pinned by Snyk to avoid a vulnerability
