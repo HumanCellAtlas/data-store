@@ -15,7 +15,7 @@ clickclick==1.2.2
 cloud-blobstore==3.2.0
 connexion==1.5.3
 crc32c==1.7
-cryptography==2.7
+cryptography==42.0.0
 dcplib==3.7.0
 docutils==0.15.2
 elasticsearch==5.5.3
